@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Me - MLB Stats Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;600;700;800&family=Righteous&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/about.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">⚾ MLB Stats Tracker</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/matchup">Pitcher vs Batter</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/about">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-sm btn-outline-light ms-3" id="theme-toggle">
+                            <span id="theme-icon">🌙</span> <span id="theme-text">Dark Mode</span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4 mb-5">
+        <section class="about-section">
+            <div class="row align-items-start">
+                <div class="col-lg-4 text-center mb-4 mb-lg-0">
+                    <div class="profile-image-container">
+                        <div class="profile-circle">
+                            <img src="https://media.licdn.com/dms/image/v2/D5603AQELoMmlihIQ-Q/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1715144352348?e=1762387200&v=beta&t=Tsvjjk_WDFFNRH8MzY4AdwhUssNOGezXiWqCxSISzV0" alt="Vincent Chen" class="profile-photo">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-8">
+                    <h1 class="about-title mb-4">About Me</h1>
+                    <div class="about-content">
+                        <p class="lead">Hi! My name is <strong>Vincent Chen</strong>, a junior studying statistics at UC Berkeley.</p>
+
+                        <p>I originally started out as a computer science major at Cal State Fullerton but I soon realized that I was more interested in working with data/business analytics and finding patterns in numbers.</p>
+
+                        <p>Baseball has always been a big part of my life. I grew up playing and watching baseball, and over time I became fascinated by the stats behind the sport. That curiosity has inspired me to build this project as a way for people to track and explore baseball statistics on their own.</p>
+
+                        <p>Over the past couple of years, I've also gotten into sports betting and daily fantasy on apps like PrizePicks and Underdog. By using simple data analysis, I've profited more than $2,500, which showed me how powerful data-driven decisions can be. With this app, I hope to make it easier for others to do their own research, learn about pitcher versus batter matchups, and discover the fun side of baseball analytics!</p>
+
+                        <div class="info-cards mt-4">
+                            <div class="info-card">
+                                <div class="info-icon">🎓</div>
+                                <div class="info-text">
+                                    <h5>Education</h5>
+                                    <p>Statistics @ UC Berkeley</p>
+                                    <p class="mb-0"><small>Previously: Computer Science @ Cal State Fullerton</small></p>
+                                </div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-icon">📊</div>
+                                <div class="info-text">
+                                    <h5>Interests</h5>
+                                    <p>Data Analytics & Business Intelligence</p>
+                                </div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-icon">⚾</div>
+                                <div class="info-text">
+                                    <h5>This Project</h5>
+                                    <p>MLB Statistics Tracker</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer class="bg-dark text-light py-4 mt-5">
+        <div class="container text-center">
+            <p>&copy; 2025 MLB Statistics Tracker. Built with Bootstrap & Flask.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+</body>
+</html>

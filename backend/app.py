@@ -64,6 +64,14 @@ class PitcherBatterMatchup(db.Model):
 def index():
     return render_template('index.html')
 
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
+@app.route('/matchup')
+def matchup():
+    return render_template('matchup.html')
+
 @app.route('/api/teams')
 def get_teams():
     return get_live_teams()
@@ -270,7 +278,7 @@ def get_todays_games():
 def get_live_games():
     try:
         today = datetime.now().strftime('%Y-%m-%d')
-        url = f'{MLB_API_BASE}/schedule?sportId=1&date={today}&hydrate=venue,linescore,probablePitcher'
+        url = f'{MLB_API_BASE}/schedule?sportId=1&date={today}&hydrate=venue,linescore,probablePitcher,seriesStatus,decisions'
         response = requests.get(url, timeout=10)
 
         if response.status_code != 200:
@@ -300,6 +308,63 @@ def get_live_games():
                     inning = game.get('linescore', {}).get('currentInningOrdinal', '')
                     inning_state = game.get('linescore', {}).get('inningState', '')
 
+                    # Get live play-by-play data if game is in progress
+                    live_data = {}
+                    if game.get('status', {}).get('statusCode') in ['I', 'IR', 'IT', 'IW']:
+                        # Fetch live game feed for current at-bat information
+                        game_pk = game.get('gamePk')
+                        try:
+                            live_feed_url = f'{MLB_API_BASE}/game/{game_pk}/feed/live'
+                            live_response = requests.get(live_feed_url, timeout=10)
+                            print(f"[LIVE FEED] Game {game_pk}: HTTP {live_response.status_code}")
+
+                            if live_response.status_code == 200:
+                                live_data_json = live_response.json()
+                                live_play = live_data_json.get('liveData', {})
+                                plays = live_play.get('plays', {})
+                                current_play = plays.get('currentPlay', {})
+
+                                print(f"[LIVE FEED] Game {game_pk}: currentPlay exists = {current_play is not None and len(current_play) > 0}")
+
+                                if current_play:
+                                    # Get count
+                                    count = current_play.get('count', {})
+                                    balls = count.get('balls', 0)
+                                    strikes = count.get('strikes', 0)
+                                    outs = count.get('outs', 0)
+
+                                    # Get current batter
+                                    matchup = current_play.get('matchup', {})
+                                    batter_data = matchup.get('batter', {})
+                                    batter_name = batter_data.get('fullName', '')
+                                    batter_id = batter_data.get('id', 0)
+
+                                    # Get current pitcher
+                                    pitcher_data = matchup.get('pitcher', {})
+                                    pitcher_name = pitcher_data.get('fullName', '')
+                                    pitcher_id = pitcher_data.get('id', 0)
+
+                                    if batter_name and pitcher_name:
+                                        live_data = {
+                                            'balls': balls,
+                                            'strikes': strikes,
+                                            'outs': outs,
+                                            'current_batter': batter_name,
+                                            'current_batter_id': batter_id,
+                                            'current_pitcher': pitcher_name,
+                                            'current_pitcher_id': pitcher_id
+                                        }
+                                        print(f"[LIVE FEED] Game {game_pk}: {pitcher_name} vs {batter_name}, Count: {balls}-{strikes}, Outs: {outs}")
+                                    else:
+                                        print(f"[LIVE FEED] Game {game_pk}: currentPlay exists but missing batter/pitcher data")
+                                else:
+                                    print(f"[LIVE FEED] Game {game_pk}: No currentPlay data (likely between innings)")
+                            else:
+                                print(f"[LIVE FEED] Game {game_pk}: API returned {live_response.status_code}")
+                        except Exception as e:
+                            print(f"[LIVE FEED ERROR] Game {game_pk}: {e}")
+                            live_data = {}
+
                     # Get probable pitchers
                     home_pitcher = ''
                     away_pitcher = ''
@@ -308,6 +373,32 @@ def get_live_games():
                         away_pitcher_data = game['probablePitchers'].get('away', {})
                         home_pitcher = home_pitcher_data.get('fullName', '')
                         away_pitcher = away_pitcher_data.get('fullName', '')
+
+                    # Get series information (for playoffs)
+                    series_info = {}
+                    if 'seriesStatus' in game:
+                        series_status = game['seriesStatus']
+                        winning_team = series_status.get('winningTeam', {})
+                        losing_team = series_status.get('losingTeam', {})
+                        winning_team_id = winning_team.get('id')
+
+                        # Determine which team is home/away and their wins
+                        if winning_team_id == home_team_id:
+                            home_wins = series_status.get('wins', 0)
+                            away_wins = series_status.get('losses', 0)
+                        else:
+                            away_wins = series_status.get('wins', 0)
+                            home_wins = series_status.get('losses', 0)
+
+                        series_info = {
+                            'series_description': series_status.get('shortName', ''),
+                            'series_result': series_status.get('result', ''),
+                            'series_game_number': series_status.get('gameNumber', 0),
+                            'games_needed': series_status.get('totalGames', 0),
+                            'home_wins': home_wins,
+                            'away_wins': away_wins,
+                            'is_tied': series_status.get('isTied', False)
+                        }
 
                     game_info = {
                         'id': game.get('gamePk'),
@@ -324,7 +415,9 @@ def get_live_games():
                         'inning': inning,
                         'inning_state': inning_state,
                         'home_pitcher': home_pitcher,
-                        'away_pitcher': away_pitcher
+                        'away_pitcher': away_pitcher,
+                        'series': series_info,
+                        'live_data': live_data
                     }
                     games.append(game_info)
 

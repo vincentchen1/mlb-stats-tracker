@@ -1,10 +1,52 @@
+:root {
+    /* Dark mode colors (default) */
+    --bg-gradient-1: #1a1a2e;
+    --bg-gradient-2: #16213e;
+    --bg-gradient-3: #0f3460;
+    --section-bg: rgba(255, 255, 255, 0.98);
+    --section-border: rgba(255, 255, 255, 0.3);
+    --card-bg-1: #ffffff;
+    --card-bg-2: #f8f9fa;
+    --card-hover-bg-1: #ffffff;
+    --card-hover-bg-2: #fff5f5;
+    --text-primary: #333;
+    --text-muted: #6c757d;
+    --navbar-bg: rgba(26, 26, 46, 0.95);
+    --footer-bg: #212529;
+    --footer-text: #f8f9fa;
+    --overlay-opacity-start: 1;
+    --overlay-opacity-mid: 0.7;
+}
+
+body.light-mode {
+    /* Light mode colors */
+    --bg-gradient-1: #e3f2fd;
+    --bg-gradient-2: #bbdefb;
+    --bg-gradient-3: #90caf9;
+    --section-bg: rgba(255, 255, 255, 0.95);
+    --section-border: rgba(66, 133, 244, 0.2);
+    --card-bg-1: #ffffff;
+    --card-bg-2: #fafafa;
+    --card-hover-bg-1: #ffffff;
+    --card-hover-bg-2: #f0f7ff;
+    --text-primary: #1a1a1a;
+    --text-muted: #5f6368;
+    --navbar-bg: rgba(255, 255, 255, 0.98);
+    --footer-bg: #f8f9fa;
+    --footer-text: #212529;
+    --overlay-opacity-start: 0.5;
+    --overlay-opacity-mid: 0.3;
+}
+
 body {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    background: linear-gradient(135deg, var(--bg-gradient-1) 0%, var(--bg-gradient-2) 50%, var(--bg-gradient-3) 100%);
     background-attachment: fixed;
     min-height: 100vh;
     position: relative;
     font-family: 'Poppins', sans-serif;
     overflow-x: hidden;
+    color: var(--text-primary);
+    transition: background 0.3s ease, color 0.3s ease;
 }
 
 /* Animated gradient overlay */
@@ -25,8 +67,8 @@ body::before {
 }
 
 @keyframes gradientShift {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
+    0%, 100% { opacity: var(--overlay-opacity-start); }
+    50% { opacity: var(--overlay-opacity-mid); }
 }
 
 
@@ -79,20 +121,137 @@ h2 {
 }
 
 .navbar {
-    background: rgba(26, 26, 46, 0.95) !important;
+    background: var(--navbar-bg) !important;
     backdrop-filter: blur(10px);
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+    transition: background 0.3s ease;
+}
+
+body.light-mode .navbar {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+body.light-mode .navbar-brand,
+body.light-mode .nav-link {
+    color: #1a1a1a !important;
+}
+
+body.light-mode .navbar-toggler-icon {
+    filter: invert(1);
 }
 
 .game-card {
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     border: none;
     box-shadow: 0 8px 16px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.1);
-    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    background: linear-gradient(145deg, var(--card-bg-1) 0%, var(--card-bg-2) 100%);
     border-radius: 20px;
     overflow: hidden;
     position: relative;
     transform-style: preserve-3d;
+}
+
+.series-info {
+    text-align: center;
+    padding: 10px 15px;
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.1) 0%, rgba(78, 205, 196, 0.1) 100%);
+    border-radius: 10px;
+    margin: -10px -10px 15px -10px;
+}
+
+.series-header {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #dc3545;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+}
+
+.series-record {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+body.light-mode .series-info {
+    background: linear-gradient(135deg, rgba(66, 133, 244, 0.1) 0%, rgba(78, 205, 196, 0.1) 100%);
+}
+
+body.light-mode .series-header {
+    color: #1976d2;
+}
+
+.live-game-data {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(255, 193, 7, 0.1) 100%);
+    border-radius: 10px;
+    border-left: 4px solid #dc3545;
+    font-size: 0.9rem;
+}
+
+.count-display {
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-align: center;
+}
+
+.count-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.count-balls {
+    color: #28a745;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.count-strikes {
+    color: #dc3545;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.count-outs {
+    color: #ffc107;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.current-matchup {
+    text-align: center;
+    line-height: 1.6;
+}
+
+body.light-mode .live-game-data {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.08) 0%, rgba(255, 193, 7, 0.08) 100%);
+}
+
+.live-player-photo {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    object-fit: cover;
+    transition: transform 0.2s ease;
+}
+
+.live-player-photo:hover {
+    transform: scale(1.1);
+}
+
+.player-name-small {
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    margin-top: 4px;
+}
+
+.current-matchup-container {
+    border-top: 1px solid rgba(0,0,0,0.1);
+    padding-top: 10px;
 }
 
 .game-card::before {
@@ -201,7 +360,7 @@ h2 {
     border: none;
     box-shadow: 0 8px 16px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.1);
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    background: linear-gradient(145deg, var(--card-bg-1) 0%, var(--card-bg-2) 100%);
     border-radius: 20px;
     overflow: hidden;
     transform-style: preserve-3d;
@@ -210,7 +369,7 @@ h2 {
 .team-card:hover {
     transform: translateY(-12px) scale(1.03);
     box-shadow: 0 20px 40px rgba(0,0,0,0.25), 0 0 0 2px rgba(255, 107, 107, 0.4);
-    background: linear-gradient(145deg, #ffffff 0%, #fff5f5 100%);
+    background: linear-gradient(145deg, var(--card-hover-bg-1) 0%, var(--card-hover-bg-2) 100%);
 }
 
 .player-list {
@@ -235,7 +394,7 @@ h2 {
 
 /* Section styling */
 section {
-    background: rgba(255, 255, 255, 0.98);
+    background: var(--section-bg);
     border-radius: 25px;
     padding: 40px;
     margin-bottom: 40px;
@@ -244,7 +403,8 @@ section {
     position: relative;
     z-index: 1;
     backdrop-filter: blur(10px);
-    border: 2px solid rgba(255,255,255,0.3);
+    border: 2px solid var(--section-border);
+    transition: background 0.3s ease, border 0.3s ease;
 }
 
 @keyframes fadeInUp {
@@ -265,11 +425,13 @@ section {
 }
 
 .vs-divider {
-    font-size: 2rem;
+    font-size: 1.5rem;
     font-weight: bold;
     color: #dc3545;
     text-align: center;
     margin: 20px 0;
+    letter-spacing: 0;
+    white-space: nowrap;
 }
 
 .no-data {
@@ -349,7 +511,7 @@ section {
 }
 
 .division-header {
-    color: #1a1a2e;
+    color: var(--text-primary);
     font-weight: 800;
     font-size: 2rem;
     margin-top: 30px;
@@ -362,6 +524,7 @@ section {
     position: relative;
     animation: slideInLeft 0.6s ease-out;
     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: color 0.3s ease;
 }
 
 .division-header::before {
@@ -480,6 +643,35 @@ section {
 .legend-text {
     flex: 1;
     line-height: 1.4;
+}
+
+footer {
+    background: var(--footer-bg) !important;
+    color: var(--footer-text) !important;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.card {
+    background: var(--card-bg-1);
+    transition: background 0.3s ease;
+}
+
+#theme-toggle {
+    transition: all 0.3s ease;
+}
+
+body.light-mode #theme-toggle {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: #1a1a1a;
+    border-color: #1a1a1a;
+}
+
+body.light-mode #theme-toggle:hover {
+    background-color: rgba(0, 0, 0, 0.2);
 }
 
 @media (max-width: 768px) {

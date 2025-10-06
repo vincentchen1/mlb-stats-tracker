@@ -20,13 +20,18 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link active" href="#games">Today's Games</a>
+                        <a class="nav-link active" href="/">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#matchups">Pitcher vs Batter</a>
+                        <a class="nav-link" href="/matchup">Pitcher vs Batter</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#teams">Teams</a>
+                        <a class="nav-link" href="/about">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-sm btn-outline-light ms-3" id="theme-toggle">
+                            <span id="theme-icon">🌙</span> <span id="theme-text">Dark Mode</span>
+                        </button>
                     </li>
                 </ul>
             </div>
@@ -44,40 +49,6 @@
                             <span class="visually-hidden">Loading...</span>
                         </div>
                     </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Pitcher vs Batter Matchups Section -->
-        <section id="matchups" class="mb-5">
-            <h2 class="mb-4">Pitcher vs Batter Matchups</h2>
-            <p class="text-muted mb-3">Choose a team and a pitcher, then choose another team and a batter to see their matchup history!</p>
-            <div class="card">
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5>Select Team 1 (Pitcher)</h5>
-                            <select class="form-select mb-3" id="team1-select">
-                                <option value="">Choose a team...</option>
-                            </select>
-                            <select class="form-select" id="pitcher-select">
-                                <option value="">Choose a pitcher...</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <h5>Select Team 2 (Batter)</h5>
-                            <select class="form-select mb-3" id="team2-select">
-                                <option value="">Choose a team...</option>
-                            </select>
-                            <select class="form-select" id="batter-select">
-                                <option value="">Choose a batter...</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="text-center mt-4">
-                        <button class="btn btn-primary" id="compare-btn" disabled>Compare Matchup</button>
-                    </div>
-                    <div id="matchup-result" class="mt-4"></div>
                 </div>
             </div>
         </section>

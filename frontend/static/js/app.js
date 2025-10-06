@@ -1,8 +1,39 @@
 document.addEventListener('DOMContentLoaded', function() {
     loadTodaysGames();
     loadTeams();
-    setupMatchupFunctionality();
+    setupThemeToggle();
+
+    // Auto-refresh games every 15 seconds
+    setInterval(loadTodaysGames, 15000);
 });
+
+function setupThemeToggle() {
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+    const themeText = document.getElementById('theme-text');
+
+    // Check for saved theme preference or default to dark mode
+    const currentTheme = localStorage.getItem('theme') || 'dark';
+    if (currentTheme === 'light') {
+        document.body.classList.add('light-mode');
+        themeIcon.textContent = '☀️';
+        themeText.textContent = 'Light Mode';
+    }
+
+    themeToggle.addEventListener('click', function() {
+        document.body.classList.toggle('light-mode');
+
+        if (document.body.classList.contains('light-mode')) {
+            themeIcon.textContent = '☀️';
+            themeText.textContent = 'Light Mode';
+            localStorage.setItem('theme', 'light');
+        } else {
+            themeIcon.textContent = '🌙';
+            themeText.textContent = 'Dark Mode';
+            localStorage.setItem('theme', 'dark');
+        }
+    });
+}
 
 async function loadTodaysGames() {
     try {
@@ -47,10 +78,56 @@ async function loadTodaysGames() {
                 inningDisplay = `${game.inning_state || ''} ${game.inning}`.trim();
             }
 
+            // Build series display (for playoffs)
+            let seriesDisplay = '';
+            if (game.series && game.series.series_description) {
+                const seriesResult = game.series.series_result || `Game ${game.series.series_game_number}`;
+                seriesDisplay = `
+                    <div class="series-info mb-3">
+                        <div class="series-header">${game.series.series_description} - Game ${game.series.series_game_number}</div>
+                        <div class="series-record">${seriesResult}</div>
+                    </div>
+                `;
+            }
+
+            // Build live game data display (current pitcher, batter, count)
+            let liveGameDisplay = '';
+            if (game.live_data && game.live_data.current_pitcher && game.status === 'live') {
+                const pitcherImage = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${game.live_data.current_pitcher_id}/headshot/67/current`;
+                const batterImage = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${game.live_data.current_batter_id}/headshot/67/current`;
+
+                liveGameDisplay = `
+                    <div class="live-game-data mt-3 p-3">
+                        <div class="count-display mb-3">
+                            <span class="count-label">Count:</span>
+                            <span class="count-balls">${game.live_data.balls}</span>-<span class="count-strikes">${game.live_data.strikes}</span>
+                            <span class="count-label ms-3">Outs:</span>
+                            <span class="count-outs">${game.live_data.outs}</span>
+                        </div>
+                        <div class="current-matchup-container">
+                            <div class="small text-muted mb-2 text-center"><strong>⚡ Current At-Bat</strong></div>
+                            <div class="row">
+                                <div class="col-6 text-center">
+                                    <img src="${pitcherImage}" alt="${game.live_data.current_pitcher}" class="live-player-photo mb-1" onerror="this.style.display='none'">
+                                    <div class="small"><strong>Pitcher</strong></div>
+                                    <div class="player-name-small">${game.live_data.current_pitcher}</div>
+                                </div>
+                                <div class="col-6 text-center">
+                                    <img src="${batterImage}" alt="${game.live_data.current_batter}" class="live-player-photo mb-1" onerror="this.style.display='none'">
+                                    <div class="small"><strong>Batter</strong></div>
+                                    <div class="player-name-small">${game.live_data.current_batter}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
             return `
             <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card game-card">
                     <div class="card-body">
+                        ${seriesDisplay}
                         <div class="row align-items-center">
                             <div class="col-5 text-center">
                                 ${game.away_team_logo ? `<img src="${game.away_team_logo}" class="team-logo mb-2" alt="${game.away_team} logo" onerror="this.style.display='none'">` : ''}
@@ -78,6 +155,7 @@ async function loadTodaysGames() {
                             ${gameTime ? `<div class="text-muted small">🕐 ${gameTime}</div>` : ''}
                             ${game.venue ? `<div class="text-muted small">📍 ${game.venue}</div>` : ''}
                         </div>
+                        ${liveGameDisplay}
                     </div>
                 </div>
             </div>
@@ -99,17 +177,6 @@ async function loadTeams() {
     try {
         const response = await fetch('/api/teams');
         const teams = await response.json();
-
-        // Populate team selects
-        const team1Select = document.getElementById('team1-select');
-        const team2Select = document.getElementById('team2-select');
-
-        const teamOptions = teams.map(team =>
-            `<option value="${team.id}">${team.city} ${team.name}</option>`
-        ).join('');
-
-        team1Select.innerHTML = '<option value="">Choose a team...</option>' + teamOptions;
-        team2Select.innerHTML = '<option value="">Choose a team...</option>' + teamOptions;
 
         // Organize teams by division
         const divisions = [
@@ -210,190 +277,5 @@ async function showTeamPlayers(teamId) {
         playersDiv.style.display = 'block';
     } catch (error) {
         console.error('Error loading players:', error);
-    }
-}
-
-function setupMatchupFunctionality() {
-    const team1Select = document.getElementById('team1-select');
-    const team2Select = document.getElementById('team2-select');
-    const pitcherSelect = document.getElementById('pitcher-select');
-    const batterSelect = document.getElementById('batter-select');
-    const compareBtn = document.getElementById('compare-btn');
-
-    team1Select.addEventListener('change', () => loadTeamPlayers(team1Select.value, 'pitcher'));
-    team2Select.addEventListener('change', () => loadTeamPlayers(team2Select.value, 'batter'));
-
-    pitcherSelect.addEventListener('change', checkMatchupReady);
-    batterSelect.addEventListener('change', checkMatchupReady);
-
-    compareBtn.addEventListener('click', compareMatchup);
-}
-
-async function loadTeamPlayers(teamId, type) {
-    if (!teamId) {
-        const select = type === 'pitcher' ? document.getElementById('pitcher-select') : document.getElementById('batter-select');
-        select.innerHTML = `<option value="">Choose a ${type}...</option>`;
-        return;
-    }
-
-    try {
-        const response = await fetch(`/api/players/${teamId}`);
-        const players = await response.json();
-
-        const select = type === 'pitcher' ? document.getElementById('pitcher-select') : document.getElementById('batter-select');
-
-        let filteredPlayers;
-        if (type === 'pitcher') {
-            // Include pitchers (P) and two-way players (TWP, Y)
-            filteredPlayers = players.filter(player => ['P', 'TWP', 'Y'].includes(player.position));
-        } else {
-            // Include all non-pitchers (including two-way players for batting)
-            filteredPlayers = players.filter(player => player.position !== 'P');
-        }
-
-        select.innerHTML = `<option value="">Choose a ${type}...</option>` +
-            filteredPlayers.map(player =>
-                `<option value="${player.id}">${player.name} (${player.position})</option>`
-            ).join('');
-
-        checkMatchupReady();
-    } catch (error) {
-        console.error(`Error loading ${type}s:`, error);
-    }
-}
-
-function checkMatchupReady() {
-    const pitcherSelect = document.getElementById('pitcher-select');
-    const batterSelect = document.getElementById('batter-select');
-    const compareBtn = document.getElementById('compare-btn');
-
-    compareBtn.disabled = !pitcherSelect.value || !batterSelect.value;
-}
-
-async function compareMatchup() {
-    const pitcherId = document.getElementById('pitcher-select').value;
-    const batterId = document.getElementById('batter-select').value;
-    const pitcherSelect = document.getElementById('pitcher-select');
-    const batterSelect = document.getElementById('batter-select');
-    const pitcherName = pitcherSelect.options[pitcherSelect.selectedIndex].text.split(' (')[0];
-    const batterName = batterSelect.options[batterSelect.selectedIndex].text.split(' (')[0];
-    const resultDiv = document.getElementById('matchup-result');
-
-    try {
-        const response = await fetch(`/api/matchup/${pitcherId}/${batterId}`);
-
-        if (response.ok) {
-            const matchup = await response.json();
-
-            // Calculate singles from hits minus extra base hits
-            const singles = matchup.hits - (matchup.doubles || 0) - (matchup.triples || 0) - (matchup.home_runs || 0);
-
-            // MLB headshot URLs
-            const pitcherImage = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${pitcherId}/headshot/67/current`;
-            const batterImage = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${batterId}/headshot/67/current`;
-
-            resultDiv.innerHTML = `
-                <div class="matchup-stats">
-                    <div class="row mb-4">
-                        <div class="col-md-5 text-center">
-                            <img src="${pitcherImage}" alt="${pitcherName}" class="player-headshot mb-2" onerror="this.src='https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/0/headshot/67/current'">
-                            <h5 class="text-white">${pitcherName}</h5>
-                            <span class="badge bg-info">Pitcher</span>
-                        </div>
-                        <div class="col-md-2 d-flex align-items-center justify-content-center">
-                            <div class="vs-badge">VS</div>
-                        </div>
-                        <div class="col-md-5 text-center">
-                            <img src="${batterImage}" alt="${batterName}" class="player-headshot mb-2" onerror="this.src='https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/0/headshot/67/current'">
-                            <h5 class="text-white">${batterName}</h5>
-                            <span class="badge bg-warning">Batter</span>
-                        </div>
-                    </div>
-                    <h4 class="text-center mb-4">Historical Matchup Statistics</h4>
-
-                    <div class="row mb-3">
-                        <div class="col-md-4 stat-item">
-                            <span class="stat-value">${matchup.at_bats}</span>
-                            <span class="stat-label">At Bats</span>
-                        </div>
-                        <div class="col-md-4 stat-item">
-                            <span class="stat-value">${matchup.hits}</span>
-                            <span class="stat-label">Hits</span>
-                        </div>
-                        <div class="col-md-4 stat-item">
-                            <span class="stat-value">${matchup.avg}</span>
-                            <span class="stat-label">Batting Average</span>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-3 stat-item">
-                            <span class="stat-value">${singles}</span>
-                            <span class="stat-label">Singles</span>
-                        </div>
-                        <div class="col-md-3 stat-item">
-                            <span class="stat-value">${matchup.doubles || 0}</span>
-                            <span class="stat-label">Doubles</span>
-                        </div>
-                        <div class="col-md-3 stat-item">
-                            <span class="stat-value">${matchup.triples || 0}</span>
-                            <span class="stat-label">Triples</span>
-                        </div>
-                        <div class="col-md-3 stat-item">
-                            <span class="stat-value">${matchup.home_runs || 0}</span>
-                            <span class="stat-label">Home Runs</span>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-3 stat-item">
-                            <span class="stat-value">${matchup.rbi || 0}</span>
-                            <span class="stat-label">RBIs</span>
-                        </div>
-                        <div class="col-md-3 stat-item">
-                            <span class="stat-value">${matchup.walks || 0}</span>
-                            <span class="stat-label">Walks</span>
-                        </div>
-                        <div class="col-md-3 stat-item">
-                            <span class="stat-value">${matchup.strikeouts || 0}</span>
-                            <span class="stat-label">Strikeouts</span>
-                        </div>
-                        <div class="col-md-3 stat-item">
-                            <span class="stat-value">${matchup.total_bases || 0}</span>
-                            <span class="stat-label">Total Bases</span>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-4 stat-item">
-                            <span class="stat-value">${matchup.obp || '.000'}</span>
-                            <span class="stat-label">On-Base %</span>
-                        </div>
-                        <div class="col-md-4 stat-item">
-                            <span class="stat-value">${matchup.slg || '.000'}</span>
-                            <span class="stat-label">Slugging %</span>
-                        </div>
-                        <div class="col-md-4 stat-item">
-                            <span class="stat-value">${matchup.ops || '.000'}</span>
-                            <span class="stat-label">OPS</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else {
-            resultDiv.innerHTML = `
-                <div class="alert alert-info">
-                    <h5>No Historical Data</h5>
-                    <p>These players have never faced each other before, or no data is available for this matchup.</p>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Error loading matchup:', error);
-        resultDiv.innerHTML = `
-            <div class="alert alert-danger">
-                Error loading matchup data. Please try again.
-            </div>
-        `;
     }
 }
