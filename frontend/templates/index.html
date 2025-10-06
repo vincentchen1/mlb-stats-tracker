@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLB Baseball Statistics Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;600;700;800&family=Righteous&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">⚾ MLB Stats Tracker</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#games">Today's Games</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#matchups">Pitcher vs Batter</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#teams">Teams</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Today's Games Section -->
+        <section id="games" class="mb-5">
+            <h2 class="mb-4" id="games-title">Today's MLB Games</h2>
+            <div class="row" id="games-container">
+                <div class="col-12">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pitcher vs Batter Matchups Section -->
+        <section id="matchups" class="mb-5">
+            <h2 class="mb-4">Pitcher vs Batter Matchups</h2>
+            <p class="text-muted mb-3">Choose a team and a pitcher, then choose another team and a batter to see their matchup history!</p>
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Select Team 1 (Pitcher)</h5>
+                            <select class="form-select mb-3" id="team1-select">
+                                <option value="">Choose a team...</option>
+                            </select>
+                            <select class="form-select" id="pitcher-select">
+                                <option value="">Choose a pitcher...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Select Team 2 (Batter)</h5>
+                            <select class="form-select mb-3" id="team2-select">
+                                <option value="">Choose a team...</option>
+                            </select>
+                            <select class="form-select" id="batter-select">
+                                <option value="">Choose a batter...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="text-center mt-4">
+                        <button class="btn btn-primary" id="compare-btn" disabled>Compare Matchup</button>
+                    </div>
+                    <div id="matchup-result" class="mt-4"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Teams Section -->
+        <section id="teams" class="mb-5">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0" id="teams-title">MLB Teams - 2025 Season</h2>
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#legendModal">
+                    📊 Playoff Legend
+                </button>
+            </div>
+            <div class="row" id="teams-container">
+                <div class="col-12">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Playoff Legend Modal -->
+    <div class="modal fade" id="legendModal" tabindex="-1" aria-labelledby="legendModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="legendModalLabel">Playoff Clinch Indicators</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="legend-item mb-3">
+                        <span class="clinch-badge-demo">PO</span>
+                        <span class="legend-text"><strong>Playoff Spot (PO)</strong> - Team has clinched a postseason berth</span>
+                    </div>
+                    <div class="legend-item mb-3">
+                        <span class="clinch-badge-demo">DIV</span>
+                        <span class="legend-text"><strong>Division (DIV)</strong> - Team has won their division title</span>
+                    </div>
+                    <div class="legend-item mb-3">
+                        <span class="clinch-badge-demo">BR</span>
+                        <span class="legend-text"><strong>Best Record (BR)</strong> - Team has secured the best record in their league</span>
+                    </div>
+                    <div class="legend-item mb-3">
+                        <span class="clinch-badge-demo">WC</span>
+                        <span class="legend-text"><strong>Wild Card (WC)</strong> - Team has secured a wild card playoff spot</span>
+                    </div>
+                    <div class="legend-item mb-3">
+                        <span class="clinch-badge-demo eliminated">E</span>
+                        <span class="legend-text"><strong>Eliminated (E)</strong> - Team has been eliminated from playoff contention</span>
+                    </div>
+                    <hr>
+                    <div class="text-muted small">
+                        <p class="mb-1"><strong>GB</strong> = Games Back (from division leader)</p>
+                        <p class="mb-1"><strong>PCT</strong> = Winning Percentage</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-dark text-light py-4 mt-5">
+        <div class="container text-center">
+            <p>&copy; 2025 MLB Statistics Tracker. Built with Bootstrap & Flask.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

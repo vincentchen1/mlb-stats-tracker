@@ -1,0 +1,495 @@
+body {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    position: relative;
+    font-family: 'Poppins', sans-serif;
+    overflow-x: hidden;
+}
+
+/* Animated gradient overlay */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background:
+        radial-gradient(circle at 20% 50%, rgba(255, 59, 48, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(0, 122, 255, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 40% 20%, rgba(255, 204, 0, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+    animation: gradientShift 15s ease infinite;
+}
+
+@keyframes gradientShift {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+
+/* Baseball pattern overlay */
+body::after {
+    content: '⚾';
+    position: fixed;
+    font-size: 300px;
+    opacity: 0.03;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(25deg);
+    pointer-events: none;
+    z-index: 0;
+    animation: float 20s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translate(-50%, -50%) rotate(25deg); }
+    50% { transform: translate(-50%, -55%) rotate(30deg); }
+}
+
+/* Enhanced typography */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Bebas Neue', cursive;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+h2 {
+    font-size: 3rem;
+    font-weight: 800;
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #ffe66d);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 3s ease-in-out infinite;
+    background-size: 200% 200%;
+}
+
+@keyframes shimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+.navbar-brand {
+    font-family: 'Righteous', cursive;
+    font-size: 1.8rem !important;
+    letter-spacing: 1px;
+}
+
+.navbar {
+    background: rgba(26, 26, 46, 0.95) !important;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+}
+
+.game-card {
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: none;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.1);
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    transform-style: preserve-3d;
+}
+
+.game-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.5s;
+}
+
+.game-card:hover::before {
+    left: 100%;
+}
+
+.game-card:hover {
+    transform: translateY(-12px) scale(1.03) rotateZ(1deg);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3), 0 0 0 2px rgba(78, 205, 196, 0.4);
+}
+
+.team-score {
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.team-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.game-status {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.status-scheduled {
+    color: #17a2b8;
+}
+
+.status-live {
+    color: #dc3545;
+}
+
+.status-final {
+    color: #28a745;
+}
+
+.matchup-stats {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px;
+    padding: 30px;
+    margin: 20px 0;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.player-headshot {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    border: 5px solid white;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    object-fit: cover;
+    transition: all 0.3s ease;
+}
+
+.player-headshot:hover {
+    transform: scale(1.1);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+}
+
+.vs-badge {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 3rem;
+    font-weight: bold;
+    color: #ffe66d;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.stat-item {
+    text-align: center;
+    padding: 10px;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    display: block;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.team-card {
+    border: none;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.1);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 20px;
+    overflow: hidden;
+    transform-style: preserve-3d;
+}
+
+.team-card:hover {
+    transform: translateY(-12px) scale(1.03);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.25), 0 0 0 2px rgba(255, 107, 107, 0.4);
+    background: linear-gradient(145deg, #ffffff 0%, #fff5f5 100%);
+}
+
+.player-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.navbar-brand {
+    font-size: 1.5rem;
+    font-weight: bold;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+/* Section styling */
+section {
+    background: rgba(255, 255, 255, 0.98);
+    border-radius: 25px;
+    padding: 40px;
+    margin-bottom: 40px;
+    box-shadow: 0 15px 50px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.2);
+    animation: fadeInUp 0.8s ease-out;
+    position: relative;
+    z-index: 1;
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255,255,255,0.3);
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.section-title {
+    border-bottom: 3px solid #007bff;
+    padding-bottom: 10px;
+    margin-bottom: 30px;
+}
+
+.vs-divider {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #dc3545;
+    text-align: center;
+    margin: 20px 0;
+}
+
+.no-data {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 40px;
+}
+
+.team-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
+.team-logo-large {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
+.team-logo:hover,
+.team-logo-large:hover {
+    transform: scale(1.2) rotate(360deg);
+    transition: transform 0.5s ease;
+}
+
+/* Animated badges */
+.badge {
+    animation: bounceIn 0.5s ease-out;
+}
+
+@keyframes bounceIn {
+    0% {
+        transform: scale(0);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Button hover effects */
+.btn {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn:hover::after {
+    width: 300px;
+    height: 300px;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.division-header {
+    color: #1a1a2e;
+    font-weight: 800;
+    font-size: 2rem;
+    margin-top: 30px;
+    margin-bottom: 25px;
+    padding: 15px 20px;
+    padding-left: 60px;
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.1) 0%, rgba(78, 205, 196, 0.1) 100%);
+    border-left: 5px solid #ff6b6b;
+    border-radius: 10px;
+    position: relative;
+    animation: slideInLeft 0.6s ease-out;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.division-header::before {
+    content: '⚾';
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 2rem;
+    animation: spin 4s linear infinite;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes spin {
+    from {
+        transform: translateY(-50%) rotate(0deg);
+    }
+    to {
+        transform: translateY(-50%) rotate(360deg);
+    }
+}
+
+/* Clinch indicator badge */
+.clinch-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    color: #333;
+    font-weight: bold;
+    font-size: 0.6rem;
+    padding: 3px 7px;
+    border-radius: 12px;
+    margin-left: 5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    animation: pulse-glow 2s infinite;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.clinch-badge.eliminated {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+    animation: none;
+}
+
+/* Team card title to prevent wrapping */
+.team-card .card-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+    gap: 5px;
+    min-height: 3rem;
+    font-size: 1rem;
+}
+
+/* Make team name text smaller on smaller cards if needed */
+@media (max-width: 1200px) {
+    .team-card .card-title {
+        font-size: 0.95rem;
+    }
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    50% {
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+    }
+}
+
+.standings-info {
+    line-height: 1.6;
+}
+
+/* Legend modal styling */
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.clinch-badge-demo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    color: #333;
+    font-weight: bold;
+    font-size: 0.75rem;
+    min-width: 45px;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 13px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.clinch-badge-demo.eliminated {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+}
+
+.legend-text {
+    flex: 1;
+    line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+    .team-logo {
+        width: 30px;
+        height: 30px;
+    }
+
+    .team-logo-large {
+        width: 60px;
+        height: 60px;
+    }
+}
