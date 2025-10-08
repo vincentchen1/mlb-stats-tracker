@@ -573,10 +573,16 @@ def get_live_games():
                         game_status
                     )
 
+                    # Get full team names (city + name) for consistency
+                    home_location = home_team_data.get('locationName', '')
+                    home_name = home_team_data.get('teamName', home_team_data.get('name', 'TBD'))
+                    away_location = away_team_data.get('locationName', '')
+                    away_name = away_team_data.get('teamName', away_team_data.get('name', 'TBD'))
+
                     game_info = {
                         'id': game.get('gamePk'),
-                        'home_team': home_team_data.get('name', 'TBD'),
-                        'away_team': away_team_data.get('name', 'TBD'),
+                        'home_team': f'{home_location} {home_name}'.strip() if home_location else home_name,
+                        'away_team': f'{away_location} {away_name}'.strip() if away_location else away_name,
                         'home_team_logo': get_team_logo_url(home_team_id) if home_team_id else '',
                         'away_team_logo': get_team_logo_url(away_team_id) if away_team_id else '',
                         'home_score': home_score,
@@ -888,13 +894,16 @@ def get_game_lineups(game_id):
 
         lineups = {
             'home': [],
-            'away': []
+            'away': [],
+            'home_pitcher': None,
+            'away_pitcher': None
         }
 
         # Process home team
         if 'home' in teams:
             home_team = teams['home']
             batting_order = home_team.get('battingOrder', [])
+            pitchers = home_team.get('pitchers', [])
             players = home_team.get('players', {})
 
             for i, player_id in enumerate(batting_order[:9], 1):  # First 9 batters
@@ -912,10 +921,24 @@ def get_game_lineups(game_id):
                         'jersey_number': player.get('jerseyNumber', '')
                     })
 
+            # Get starting pitcher (first pitcher in the list)
+            if pitchers and len(pitchers) > 0:
+                pitcher_id = pitchers[0]
+                pitcher_key = f'ID{pitcher_id}'
+                if pitcher_key in players:
+                    pitcher = players[pitcher_key]
+                    pitcher_person = pitcher.get('person', {})
+                    lineups['home_pitcher'] = {
+                        'name': pitcher_person.get('fullName', 'Unknown'),
+                        'id': pitcher_id,
+                        'jersey_number': pitcher.get('jerseyNumber', '')
+                    }
+
         # Process away team
         if 'away' in teams:
             away_team = teams['away']
             batting_order = away_team.get('battingOrder', [])
+            pitchers = away_team.get('pitchers', [])
             players = away_team.get('players', {})
 
             for i, player_id in enumerate(batting_order[:9], 1):  # First 9 batters
@@ -932,6 +955,19 @@ def get_game_lineups(game_id):
                         'position': position.get('abbreviation', ''),
                         'jersey_number': player.get('jerseyNumber', '')
                     })
+
+            # Get starting pitcher (first pitcher in the list)
+            if pitchers and len(pitchers) > 0:
+                pitcher_id = pitchers[0]
+                pitcher_key = f'ID{pitcher_id}'
+                if pitcher_key in players:
+                    pitcher = players[pitcher_key]
+                    pitcher_person = pitcher.get('person', {})
+                    lineups['away_pitcher'] = {
+                        'name': pitcher_person.get('fullName', 'Unknown'),
+                        'id': pitcher_id,
+                        'jersey_number': pitcher.get('jerseyNumber', '')
+                    }
 
         return jsonify(lineups)
 

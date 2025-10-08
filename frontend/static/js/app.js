@@ -166,6 +166,15 @@ async function loadTodaysGames() {
                 `;
             }
 
+            // Split team names into city and name for consistent display
+            const awayTeamParts = game.away_team.split(' ');
+            const awayCity = awayTeamParts.slice(0, -1).join(' ');
+            const awayName = awayTeamParts[awayTeamParts.length - 1];
+
+            const homeTeamParts = game.home_team.split(' ');
+            const homeCity = homeTeamParts.slice(0, -1).join(' ');
+            const homeName = homeTeamParts[homeTeamParts.length - 1];
+
             return `
             <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card game-card">
@@ -174,7 +183,7 @@ async function loadTodaysGames() {
                         <div class="row align-items-center">
                             <div class="col-5 text-center">
                                 ${game.away_team_logo ? `<img src="${game.away_team_logo}" class="team-logo mb-2" alt="${game.away_team} logo" onerror="this.style.display='none'">` : ''}
-                                <div class="team-name">${game.away_team}</div>
+                                <div class="team-name">${awayCity}<br>${awayName}</div>
                                 <div class="team-score">${game.away_score}</div>
                                 ${game.away_pitcher ? `<div class="text-muted small mt-1">${game.away_pitcher}</div>` : ''}
                             </div>
@@ -183,7 +192,7 @@ async function loadTodaysGames() {
                             </div>
                             <div class="col-5 text-center">
                                 ${game.home_team_logo ? `<img src="${game.home_team_logo}" class="team-logo mb-2" alt="${game.home_team} logo" onerror="this.style.display='none'">` : ''}
-                                <div class="team-name">${game.home_team}</div>
+                                <div class="team-name">${homeCity}<br>${homeName}</div>
                                 <div class="team-score">${game.home_score}</div>
                                 ${game.home_pitcher ? `<div class="text-muted small mt-1">${game.home_pitcher}</div>` : ''}
                             </div>
@@ -353,6 +362,12 @@ async function showLineups(gameId, awayTeam, homeTeam) {
                             <div class="row">
                                 <div class="col-md-6">
                                     <h6 class="text-center mb-3">${awayTeam}</h6>
+                                    ${lineups.away_pitcher ? `
+                                        <div class="text-center mb-3 p-2 bg-light rounded">
+                                            <strong>Starting Pitcher</strong><br>
+                                            ${lineups.away_pitcher.name} ${lineups.away_pitcher.jersey_number ? `#${lineups.away_pitcher.jersey_number}` : ''}
+                                        </div>
+                                    ` : ''}
                                     <div class="lineup-list">
                                         ${lineups.away.map(player => `
                                             <div class="lineup-player">
@@ -367,6 +382,12 @@ async function showLineups(gameId, awayTeam, homeTeam) {
                                 </div>
                                 <div class="col-md-6">
                                     <h6 class="text-center mb-3">${homeTeam}</h6>
+                                    ${lineups.home_pitcher ? `
+                                        <div class="text-center mb-3 p-2 bg-light rounded">
+                                            <strong>Starting Pitcher</strong><br>
+                                            ${lineups.home_pitcher.name} ${lineups.home_pitcher.jersey_number ? `#${lineups.home_pitcher.jersey_number}` : ''}
+                                        </div>
+                                    ` : ''}
                                     <div class="lineup-list">
                                         ${lineups.home.map(player => `
                                             <div class="lineup-player">
