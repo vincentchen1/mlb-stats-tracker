@@ -59,6 +59,25 @@ class PitcherBatterMatchup(db.Model):
     pitcher = db.relationship('Player', foreign_keys=[pitcher_id])
     batter = db.relationship('Player', foreign_keys=[batter_id])
 
+class Bet(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    bet_type = db.Column(db.String(50), nullable=False)  # 'player_prop', 'game_total', 'moneyline', 'run_line'
+    platform = db.Column(db.String(50), nullable=False)  # 'PrizePicks', 'Underdog', 'DraftKings', etc.
+    description = db.Column(db.String(500), nullable=False)  # e.g., "Shohei Ohtani Over 1.5 Total Bases"
+    player_name = db.Column(db.String(100))  # Optional: for player props
+    team_name = db.Column(db.String(100))  # Optional: for team bets
+    line = db.Column(db.String(50))  # e.g., "1.5", "7.5", "-150"
+    pick = db.Column(db.String(20))  # 'over', 'under', 'home', 'away'
+    stake = db.Column(db.Float, nullable=False)  # Amount wagered
+    odds = db.Column(db.Float)  # Decimal odds (e.g., 1.91 for -110)
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'won', 'lost', 'push'
+    payout = db.Column(db.Float, default=0.0)  # Amount won (if won)
+    profit = db.Column(db.Float, default=0.0)  # Net profit/loss
+    notes = db.Column(db.Text)  # Optional notes about the bet
+    game_date = db.Column(db.Date)  # Date of the actual game
+    result = db.Column(db.String(200))  # Actual result (e.g., "Ohtani: 2 Total Bases")
+
 # Routes
 @app.route('/')
 def index():
@@ -788,6 +807,236 @@ def get_game_lineups(game_id):
     except Exception as e:
         print(f"Error fetching lineup data: {e}")
         return jsonify({'message': 'Lineup data not available'}), 404
+
+# Betting Tracker Routes
+@app.route('/bets')
+def bets_page():
+    """Render the betting tracker page"""
+    return render_template('bets.html')
+
+@app.route('/api/bets', methods=['GET'])
+def get_bets():
+    """Get all bets with optional filtering"""
+    try:
+        status_filter = request.args.get('status')  # 'won', 'lost', 'pending', 'push'
+        platform_filter = request.args.get('platform')
+        bet_type_filter = request.args.get('bet_type')
+
+        query = Bet.query
+
+        if status_filter:
+            query = query.filter_by(status=status_filter)
+        if platform_filter:
+            query = query.filter_by(platform=platform_filter)
+        if bet_type_filter:
+            query = query.filter_by(bet_type=bet_type_filter)
+
+        bets = query.order_by(Bet.date.desc()).all()
+
+        return jsonify([{
+            'id': bet.id,
+            'date': bet.date.strftime('%Y-%m-%d %H:%M'),
+            'bet_type': bet.bet_type,
+            'platform': bet.platform,
+            'description': bet.description,
+            'player_name': bet.player_name,
+            'team_name': bet.team_name,
+            'line': bet.line,
+            'pick': bet.pick,
+            'stake': bet.stake,
+            'odds': bet.odds,
+            'status': bet.status,
+            'payout': bet.payout,
+            'profit': bet.profit,
+            'notes': bet.notes,
+            'game_date': bet.game_date.strftime('%Y-%m-%d') if bet.game_date else None,
+            'result': bet.result
+        } for bet in bets])
+    except Exception as e:
+        print(f"Error fetching bets: {e}")
+        return jsonify({'message': 'Error fetching bets'}), 500
+
+@app.route('/api/bets', methods=['POST'])
+def create_bet():
+    """Create a new bet"""
+    try:
+        data = request.json
+
+        # Parse game_date if provided
+        game_date = None
+        if data.get('game_date'):
+            game_date = datetime.strptime(data['game_date'], '%Y-%m-%d').date()
+
+        bet = Bet(
+            bet_type=data['bet_type'],
+            platform=data['platform'],
+            description=data['description'],
+            player_name=data.get('player_name'),
+            team_name=data.get('team_name'),
+            line=data.get('line'),
+            pick=data['pick'],
+            stake=float(data['stake']),
+            odds=float(data.get('odds', 1.0)) if data.get('odds') else None,
+            status=data.get('status', 'pending'),
+            notes=data.get('notes'),
+            game_date=game_date
+        )
+
+        db.session.add(bet)
+        db.session.commit()
+
+        return jsonify({'message': 'Bet created successfully', 'id': bet.id}), 201
+    except Exception as e:
+        print(f"Error creating bet: {e}")
+        db.session.rollback()
+        return jsonify({'message': 'Error creating bet', 'error': str(e)}), 500
+
+@app.route('/api/bets/<int:bet_id>', methods=['PUT'])
+def update_bet(bet_id):
+    """Update an existing bet"""
+    try:
+        bet = Bet.query.get_or_404(bet_id)
+        data = request.json
+
+        # Update fields
+        if 'status' in data:
+            bet.status = data['status']
+        if 'payout' in data:
+            bet.payout = float(data['payout'])
+        if 'profit' in data:
+            bet.profit = float(data['profit'])
+        elif 'status' in data and data['status'] == 'won' and 'payout' in data:
+            # Auto-calculate profit if won
+            bet.profit = float(data['payout']) - bet.stake
+        elif 'status' in data and data['status'] == 'lost':
+            bet.profit = -bet.stake
+        elif 'status' in data and data['status'] == 'push':
+            bet.profit = 0.0
+            bet.payout = bet.stake
+
+        if 'result' in data:
+            bet.result = data['result']
+        if 'notes' in data:
+            bet.notes = data['notes']
+
+        db.session.commit()
+
+        return jsonify({'message': 'Bet updated successfully'})
+    except Exception as e:
+        print(f"Error updating bet: {e}")
+        db.session.rollback()
+        return jsonify({'message': 'Error updating bet', 'error': str(e)}), 500
+
+@app.route('/api/bets/<int:bet_id>', methods=['DELETE'])
+def delete_bet(bet_id):
+    """Delete a bet"""
+    try:
+        bet = Bet.query.get_or_404(bet_id)
+        db.session.delete(bet)
+        db.session.commit()
+
+        return jsonify({'message': 'Bet deleted successfully'})
+    except Exception as e:
+        print(f"Error deleting bet: {e}")
+        db.session.rollback()
+        return jsonify({'message': 'Error deleting bet', 'error': str(e)}), 500
+
+@app.route('/api/bets/stats')
+def get_betting_stats():
+    """Get betting statistics and ROI"""
+    try:
+        all_bets = Bet.query.all()
+        won_bets = Bet.query.filter_by(status='won').all()
+        lost_bets = Bet.query.filter_by(status='lost').all()
+        pending_bets = Bet.query.filter_by(status='pending').all()
+        push_bets = Bet.query.filter_by(status='push').all()
+
+        total_bets = len(all_bets)
+        total_won = len(won_bets)
+        total_lost = len(lost_bets)
+        total_pending = len(pending_bets)
+        total_push = len(push_bets)
+
+        total_staked = sum(bet.stake for bet in all_bets)
+        total_profit = sum(bet.profit for bet in all_bets if bet.profit is not None)
+        total_payout = sum(bet.payout for bet in all_bets if bet.payout is not None)
+
+        # Calculate win rate (excluding pending and push)
+        completed_bets = total_won + total_lost
+        win_rate = (total_won / completed_bets * 100) if completed_bets > 0 else 0
+
+        # Calculate ROI
+        roi = (total_profit / total_staked * 100) if total_staked > 0 else 0
+
+        # Stats by platform
+        platforms = {}
+        for bet in all_bets:
+            if bet.platform not in platforms:
+                platforms[bet.platform] = {
+                    'total_bets': 0,
+                    'won': 0,
+                    'lost': 0,
+                    'profit': 0.0,
+                    'staked': 0.0
+                }
+            platforms[bet.platform]['total_bets'] += 1
+            platforms[bet.platform]['staked'] += bet.stake
+            if bet.status == 'won':
+                platforms[bet.platform]['won'] += 1
+            elif bet.status == 'lost':
+                platforms[bet.platform]['lost'] += 1
+            if bet.profit:
+                platforms[bet.platform]['profit'] += bet.profit
+
+        # Calculate platform ROI
+        for platform in platforms:
+            staked = platforms[platform]['staked']
+            platforms[platform]['roi'] = (platforms[platform]['profit'] / staked * 100) if staked > 0 else 0
+            platforms[platform]['win_rate'] = (platforms[platform]['won'] / (platforms[platform]['won'] + platforms[platform]['lost']) * 100) if (platforms[platform]['won'] + platforms[platform]['lost']) > 0 else 0
+
+        # Stats by bet type
+        bet_types = {}
+        for bet in all_bets:
+            if bet.bet_type not in bet_types:
+                bet_types[bet.bet_type] = {
+                    'total_bets': 0,
+                    'won': 0,
+                    'lost': 0,
+                    'profit': 0.0,
+                    'staked': 0.0
+                }
+            bet_types[bet.bet_type]['total_bets'] += 1
+            bet_types[bet.bet_type]['staked'] += bet.stake
+            if bet.status == 'won':
+                bet_types[bet.bet_type]['won'] += 1
+            elif bet.status == 'lost':
+                bet_types[bet.bet_type]['lost'] += 1
+            if bet.profit:
+                bet_types[bet.bet_type]['profit'] += bet.profit
+
+        # Calculate bet type ROI
+        for bet_type in bet_types:
+            staked = bet_types[bet_type]['staked']
+            bet_types[bet_type]['roi'] = (bet_types[bet_type]['profit'] / staked * 100) if staked > 0 else 0
+            bet_types[bet_type]['win_rate'] = (bet_types[bet_type]['won'] / (bet_types[bet_type]['won'] + bet_types[bet_type]['lost']) * 100) if (bet_types[bet_type]['won'] + bet_types[bet_type]['lost']) > 0 else 0
+
+        return jsonify({
+            'total_bets': total_bets,
+            'won': total_won,
+            'lost': total_lost,
+            'pending': total_pending,
+            'push': total_push,
+            'total_staked': round(total_staked, 2),
+            'total_profit': round(total_profit, 2),
+            'total_payout': round(total_payout, 2),
+            'win_rate': round(win_rate, 2),
+            'roi': round(roi, 2),
+            'platforms': platforms,
+            'bet_types': bet_types
+        })
+    except Exception as e:
+        print(f"Error fetching betting stats: {e}")
+        return jsonify({'message': 'Error fetching stats', 'error': str(e)}), 500
 
 def initialize_sample_data():
     if Team.query.count() == 0:
