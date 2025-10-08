@@ -46,8 +46,12 @@
         <!-- Statistics Cards -->
         <div class="row mb-4">
             <div class="col-12">
-                <h2 class="section-title text-center mb-4">💰 Betting Tracker</h2>
+                <h2 class="section-title text-center mb-4">💰 Parlay Betting Tracker</h2>
+                <p class="text-center text-muted mb-4">Track your PrizePicks and Underdog Fantasy parlays with accurate payout calculations</p>
             </div>
+        </div>
+
+        <div class="row mb-4">
             <div class="col-md-3 col-sm-6 mb-3">
                 <div class="stat-card">
                     <div class="stat-icon">💵</div>
@@ -57,177 +61,175 @@
             </div>
             <div class="col-md-3 col-sm-6 mb-3">
                 <div class="stat-card">
-                    <div class="stat-icon">📊</div>
+                    <div class="stat-icon">📈</div>
                     <div class="stat-value" id="roi">0%</div>
                     <div class="stat-label">ROI</div>
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-3">
                 <div class="stat-card">
-                    <div class="stat-icon">🎯</div>
+                    <div class="stat-icon">✅</div>
                     <div class="stat-value" id="win-rate">0%</div>
                     <div class="stat-label">Win Rate</div>
                 </div>
             </div>
             <div class="col-md-3 col-sm-6 mb-3">
                 <div class="stat-card">
-                    <div class="stat-icon">📈</div>
+                    <div class="stat-icon">🎯</div>
                     <div class="stat-value" id="total-bets">0</div>
-                    <div class="stat-label">Total Bets</div>
+                    <div class="stat-label">Total Entries</div>
                 </div>
             </div>
         </div>
 
-        <!-- Add Bet Button -->
-        <div class="row mb-3">
+        <!-- Add New Entry Button -->
+        <div class="row mb-4">
             <div class="col-12 text-center">
                 <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addBetModal">
-                    ➕ Add New Bet
+                    ➕ Add New Parlay Entry
                 </button>
             </div>
         </div>
 
-        <!-- Filters -->
-        <div class="row mb-3">
+        <!-- Filters and Table -->
+        <div class="row mb-4">
             <div class="col-md-4">
                 <select class="form-select" id="status-filter">
                     <option value="">All Statuses</option>
                     <option value="pending">Pending</option>
                     <option value="won">Won</option>
                     <option value="lost">Lost</option>
-                    <option value="push">Push</option>
+                    <option value="partial">Partial Hit</option>
                 </select>
             </div>
             <div class="col-md-4">
                 <select class="form-select" id="platform-filter">
                     <option value="">All Platforms</option>
                     <option value="PrizePicks">PrizePicks</option>
-                    <option value="Underdog">Underdog</option>
-                    <option value="DraftKings">DraftKings</option>
-                    <option value="FanDuel">FanDuel</option>
-                    <option value="Other">Other</option>
+                    <option value="Underdog">Underdog Fantasy</option>
                 </select>
             </div>
             <div class="col-md-4">
                 <select class="form-select" id="type-filter">
                     <option value="">All Types</option>
-                    <option value="player_prop">Player Prop</option>
-                    <option value="game_total">Game Total</option>
-                    <option value="moneyline">Moneyline</option>
-                    <option value="run_line">Run Line</option>
+                    <option value="Power">Power Play</option>
+                    <option value="Flex">Flex Play</option>
+                    <option value="Standard">Standard</option>
                 </select>
             </div>
         </div>
 
         <!-- Bets Table -->
-        <div class="row">
-            <div class="col-12">
-                <div class="bets-table-container">
-                    <table class="table table-hover" id="bets-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Platform</th>
-                                <th>Description</th>
-                                <th>Pick</th>
-                                <th>Stake</th>
-                                <th>Status</th>
-                                <th>Profit</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="bets-tbody">
-                            <!-- Bets will be loaded here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+        <div class="bets-table-container">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Platform</th>
+                        <th>Type</th>
+                        <th>Picks</th>
+                        <th>Stake</th>
+                        <th>Status</th>
+                        <th>Payout</th>
+                        <th>Profit</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="bets-tbody">
+                    <tr>
+                        <td colspan="9" class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
     <!-- Add Bet Modal -->
     <div class="modal fade" id="addBetModal" tabindex="-1" aria-labelledby="addBetModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addBetModalLabel">Add New Bet</h5>
+                    <h5 class="modal-title" id="addBetModalLabel">Add New Parlay Entry</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <form id="add-bet-form">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="bet-type" class="form-label">Bet Type</label>
-                                <select class="form-select" id="bet-type" required>
-                                    <option value="player_prop">Player Prop</option>
-                                    <option value="game_total">Game Total (Over/Under)</option>
-                                    <option value="moneyline">Moneyline</option>
-                                    <option value="run_line">Run Line</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="platform" class="form-label">Platform</label>
+                        <!-- Platform and Entry Type -->
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="platform" class="form-label">Platform *</label>
                                 <select class="form-select" id="platform" required>
+                                    <option value="">Choose platform...</option>
                                     <option value="PrizePicks">PrizePicks</option>
-                                    <option value="Underdog">Underdog</option>
-                                    <option value="DraftKings">DraftKings</option>
-                                    <option value="FanDuel">FanDuel</option>
-                                    <option value="Other">Other</option>
+                                    <option value="Underdog">Underdog Fantasy</option>
                                 </select>
                             </div>
+                            <div class="col-md-4">
+                                <label for="entry-type" class="form-label">Entry Type *</label>
+                                <select class="form-select" id="entry-type" required>
+                                    <option value="">Choose type...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="stake" class="form-label">Stake Amount ($) *</label>
+                                <input type="number" class="form-control" id="stake" step="0.01" min="0.01" required>
+                            </div>
                         </div>
+
+                        <!-- Picks Container -->
                         <div class="mb-3">
-                            <label for="description" class="form-label">Description</label>
-                            <input type="text" class="form-control" id="description" placeholder="e.g., Shohei Ohtani Over 1.5 Total Bases" required>
+                            <label class="form-label">Player Picks (Minimum 2 required) *</label>
+                            <div id="picks-container"></div>
+                            <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="add-pick-btn">
+                                ➕ Add Pick
+                            </button>
+                            <small class="text-muted ms-2" id="pick-count">0 picks added</small>
                         </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="player-name" class="form-label">Player Name (optional)</label>
-                                <input type="text" class="form-control" id="player-name" placeholder="e.g., Shohei Ohtani">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="team-name" class="form-label">Team (optional)</label>
-                                <input type="text" class="form-control" id="team-name" placeholder="e.g., Los Angeles Dodgers">
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label for="line" class="form-label">Line</label>
-                                <input type="text" class="form-control" id="line" placeholder="e.g., 1.5, 7.5">
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="pick" class="form-label">Pick</label>
-                                <select class="form-select" id="pick" required>
-                                    <option value="over">Over</option>
-                                    <option value="under">Under</option>
-                                    <option value="home">Home</option>
-                                    <option value="away">Away</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="stake" class="form-label">Stake ($)</label>
-                                <input type="number" step="0.01" class="form-control" id="stake" placeholder="25.00" required>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="odds" class="form-label">Odds (decimal, optional)</label>
-                                <input type="number" step="0.01" class="form-control" id="odds" placeholder="1.91">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="game-date" class="form-label">Game Date (optional)</label>
+
+                        <!-- Optional Fields -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="game-date" class="form-label">Game Date</label>
                                 <input type="date" class="form-control" id="game-date">
                             </div>
+                            <div class="col-md-6">
+                                <label for="notes" class="form-label">Notes</label>
+                                <input type="text" class="form-control" id="notes" placeholder="Optional notes...">
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="notes" class="form-label">Notes (optional)</label>
-                            <textarea class="form-control" id="notes" rows="2" placeholder="Any additional notes..."></textarea>
+
+                        <div class="payout-preview mt-3 p-3" id="payout-preview" style="display: none;">
+                            <h6>Expected Payout Preview:</h6>
+                            <p class="mb-0" id="payout-text"></p>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="saveBet()">Save Bet</button>
+                    <button type="button" class="btn btn-primary" onclick="saveBet()">Save Parlay Entry</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View/Edit Bet Modal -->
+    <div class="modal fade" id="viewBetModal" tabindex="-1" aria-labelledby="viewBetModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewBetModalLabel">Parlay Entry Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="view-bet-content">
+                    <!-- Content loaded dynamically -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="updateBetResults()">Save Results</button>
                 </div>
             </div>
         </div>
@@ -240,7 +242,7 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     <script src="{{ url_for('static', filename='js/bets.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </body>
 </html>

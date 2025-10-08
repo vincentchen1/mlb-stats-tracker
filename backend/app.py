@@ -62,21 +62,152 @@ class PitcherBatterMatchup(db.Model):
 class Bet(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    bet_type = db.Column(db.String(50), nullable=False)  # 'player_prop', 'game_total', 'moneyline', 'run_line'
-    platform = db.Column(db.String(50), nullable=False)  # 'PrizePicks', 'Underdog', 'DraftKings', etc.
-    description = db.Column(db.String(500), nullable=False)  # e.g., "Shohei Ohtani Over 1.5 Total Bases"
-    player_name = db.Column(db.String(100))  # Optional: for player props
-    team_name = db.Column(db.String(100))  # Optional: for team bets
-    line = db.Column(db.String(50))  # e.g., "1.5", "7.5", "-150"
-    pick = db.Column(db.String(20))  # 'over', 'under', 'home', 'away'
+    platform = db.Column(db.String(50), nullable=False)  # 'PrizePicks', 'Underdog'
+    entry_type = db.Column(db.String(50), nullable=False)  # 'Power', 'Flex' for PrizePicks, 'Standard', 'Flex' for Underdog
+    num_picks = db.Column(db.Integer, nullable=False)  # 2-6 picks
     stake = db.Column(db.Float, nullable=False)  # Amount wagered
-    odds = db.Column(db.Float)  # Decimal odds (e.g., 1.91 for -110)
-    status = db.Column(db.String(20), default='pending')  # 'pending', 'won', 'lost', 'push'
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'won', 'lost', 'partial' (for flex)
+    hits = db.Column(db.Integer, default=0)  # Number of picks that hit
     payout = db.Column(db.Float, default=0.0)  # Amount won (if won)
     profit = db.Column(db.Float, default=0.0)  # Net profit/loss
     notes = db.Column(db.Text)  # Optional notes about the bet
-    game_date = db.Column(db.Date)  # Date of the actual game
-    result = db.Column(db.String(200))  # Actual result (e.g., "Ohtani: 2 Total Bases")
+    game_date = db.Column(db.Date)  # Date of the actual game(s)
+    picks = db.relationship('BetPick', backref='bet', lazy=True, cascade='all, delete-orphan')
+
+class BetPick(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    bet_id = db.Column(db.Integer, db.ForeignKey('bet.id'), nullable=False)
+    player_name = db.Column(db.String(100), nullable=False)
+    team_name = db.Column(db.String(100))
+    stat_type = db.Column(db.String(50), nullable=False)  # 'Pts', 'Rebs', 'Hits', 'K', 'HR', etc.
+    line = db.Column(db.Float, nullable=False)  # The projection line
+    pick = db.Column(db.String(20), nullable=False)  # 'higher' or 'lower'
+    result = db.Column(db.String(20))  # 'hit', 'miss', 'pending'
+    actual_value = db.Column(db.Float)  # Actual stat value
+
+# Payout Calculator Functions
+def calculate_prizepicks_payout(stake, num_picks, entry_type, hits):
+    """
+    Calculate PrizePicks payout based on official multipliers
+
+    Power Play (all picks must hit):
+    2-Pick: 3x
+    3-Pick: 6x
+    4-Pick: 12x
+    5-Pick: 20x
+    6-Pick: 37.5x
+
+    Flex Play (can miss picks):
+    3-Pick: 3x (for 3/3)
+    4-Pick: 6x (for 4/4)
+    5-Pick: 10x (for 5/5)
+    6-Pick: 25x (for 6/6)
+    """
+    if entry_type == 'Power':
+        # Power Play - all picks must hit
+        if hits != num_picks:
+            return 0.0
+
+        multipliers = {
+            2: 3.0,
+            3: 6.0,
+            4: 12.0,
+            5: 20.0,
+            6: 37.5
+        }
+        multiplier = multipliers.get(num_picks, 0)
+        return stake * multiplier
+
+    elif entry_type == 'Flex':
+        # Flex Play - can miss one pick
+        if num_picks < 3:
+            return 0.0
+
+        # All correct multipliers
+        all_correct_multipliers = {
+            3: 3.0,
+            4: 6.0,
+            5: 10.0,
+            6: 25.0
+        }
+
+        # Partial hit multipliers (miss one)
+        partial_multipliers = {
+            3: 0.0,  # 2/3 = loss
+            4: 0.4,  # 3/4 = 0.4x (lose 60% of stake)
+            5: 1.5,  # 4/5 = 1.5x
+            6: 2.0   # 5/6 = 2x
+        }
+
+        if hits == num_picks:
+            multiplier = all_correct_multipliers.get(num_picks, 0)
+            return stake * multiplier
+        elif hits == num_picks - 1:
+            multiplier = partial_multipliers.get(num_picks, 0)
+            return stake * multiplier
+        else:
+            return 0.0
+
+    return 0.0
+
+def calculate_underdog_payout(stake, num_picks, entry_type, hits):
+    """
+    Calculate Underdog Fantasy payout based on official multipliers
+
+    Standard Entry (all picks must hit):
+    2-Pick: 3x
+    3-Pick: 6x
+    4-Pick: 10x
+    5-Pick: 20x
+
+    Flex Entry (can miss one):
+    3-Pick: 6x (3/3)
+    4-Pick: 10x (4/4), 2x (3/4)
+    5-Pick: 20x (5/5), 3x (4/5)
+    """
+    if entry_type == 'Standard':
+        # Standard - all picks must hit
+        if hits != num_picks:
+            return 0.0
+
+        multipliers = {
+            2: 3.0,
+            3: 6.0,
+            4: 10.0,
+            5: 20.0
+        }
+        multiplier = multipliers.get(num_picks, 0)
+        return stake * multiplier
+
+    elif entry_type == 'Flex':
+        # Flex - can miss one pick (min 3 picks)
+        if num_picks < 3:
+            return 0.0
+
+        # All correct multipliers
+        all_correct_multipliers = {
+            3: 6.0,
+            4: 10.0,
+            5: 20.0
+        }
+
+        # Partial hit multipliers (miss one)
+        partial_multipliers = {
+            3: 0.0,  # 2/3 = loss
+            4: 2.0,  # 3/4 = 2x
+            5: 3.0   # 4/5 = 3x
+        }
+
+        if hits == num_picks:
+            multiplier = all_correct_multipliers.get(num_picks, 0)
+            return stake * multiplier
+        elif hits == num_picks - 1:
+            multiplier = partial_multipliers.get(num_picks, 0)
+            return stake * multiplier
+        else:
+            return 0.0
+
+    return 0.0
 
 # Routes
 @app.route('/')
@@ -818,9 +949,9 @@ def bets_page():
 def get_bets():
     """Get all bets with optional filtering"""
     try:
-        status_filter = request.args.get('status')  # 'won', 'lost', 'pending', 'push'
+        status_filter = request.args.get('status')
         platform_filter = request.args.get('platform')
-        bet_type_filter = request.args.get('bet_type')
+        entry_type_filter = request.args.get('entry_type')
 
         query = Bet.query
 
@@ -828,29 +959,34 @@ def get_bets():
             query = query.filter_by(status=status_filter)
         if platform_filter:
             query = query.filter_by(platform=platform_filter)
-        if bet_type_filter:
-            query = query.filter_by(bet_type=bet_type_filter)
+        if entry_type_filter:
+            query = query.filter_by(entry_type=entry_type_filter)
 
         bets = query.order_by(Bet.date.desc()).all()
 
         return jsonify([{
             'id': bet.id,
             'date': bet.date.strftime('%Y-%m-%d %H:%M'),
-            'bet_type': bet.bet_type,
             'platform': bet.platform,
-            'description': bet.description,
-            'player_name': bet.player_name,
-            'team_name': bet.team_name,
-            'line': bet.line,
-            'pick': bet.pick,
+            'entry_type': bet.entry_type,
+            'num_picks': bet.num_picks,
             'stake': bet.stake,
-            'odds': bet.odds,
             'status': bet.status,
+            'hits': bet.hits,
             'payout': bet.payout,
             'profit': bet.profit,
             'notes': bet.notes,
             'game_date': bet.game_date.strftime('%Y-%m-%d') if bet.game_date else None,
-            'result': bet.result
+            'picks': [{
+                'id': pick.id,
+                'player_name': pick.player_name,
+                'team_name': pick.team_name,
+                'stat_type': pick.stat_type,
+                'line': pick.line,
+                'pick': pick.pick,
+                'result': pick.result,
+                'actual_value': pick.actual_value
+            } for pick in bet.picks]
         } for bet in bets])
     except Exception as e:
         print(f"Error fetching bets: {e}")
@@ -858,34 +994,60 @@ def get_bets():
 
 @app.route('/api/bets', methods=['POST'])
 def create_bet():
-    """Create a new bet"""
+    """Create a new parlay entry with multiple picks"""
     try:
         data = request.json
+
+        # Validate minimum picks
+        picks_data = data.get('picks', [])
+        if len(picks_data) < 2:
+            return jsonify({'message': 'Minimum 2 picks required for a parlay'}), 400
+
+        # Validate pick count limits
+        num_picks = len(picks_data)
+        platform = data['platform']
+
+        if platform == 'PrizePicks' and num_picks > 6:
+            return jsonify({'message': 'PrizePicks maximum is 6 picks'}), 400
+        if platform == 'Underdog' and num_picks > 5:
+            return jsonify({'message': 'Underdog maximum is 5 picks'}), 400
 
         # Parse game_date if provided
         game_date = None
         if data.get('game_date'):
             game_date = datetime.strptime(data['game_date'], '%Y-%m-%d').date()
 
+        # Create the bet entry
         bet = Bet(
-            bet_type=data['bet_type'],
-            platform=data['platform'],
-            description=data['description'],
-            player_name=data.get('player_name'),
-            team_name=data.get('team_name'),
-            line=data.get('line'),
-            pick=data['pick'],
+            platform=platform,
+            entry_type=data['entry_type'],
+            num_picks=num_picks,
             stake=float(data['stake']),
-            odds=float(data.get('odds', 1.0)) if data.get('odds') else None,
-            status=data.get('status', 'pending'),
+            status='pending',
+            hits=0,
             notes=data.get('notes'),
             game_date=game_date
         )
 
         db.session.add(bet)
+        db.session.flush()  # Get bet ID for foreign keys
+
+        # Add all picks
+        for pick_data in picks_data:
+            pick = BetPick(
+                bet_id=bet.id,
+                player_name=pick_data['player_name'],
+                team_name=pick_data.get('team_name'),
+                stat_type=pick_data['stat_type'],
+                line=float(pick_data['line']),
+                pick=pick_data['pick'],
+                result='pending'
+            )
+            db.session.add(pick)
+
         db.session.commit()
 
-        return jsonify({'message': 'Bet created successfully', 'id': bet.id}), 201
+        return jsonify({'message': 'Parlay entry created successfully', 'id': bet.id}), 201
     except Exception as e:
         print(f"Error creating bet: {e}")
         db.session.rollback()
@@ -893,35 +1055,58 @@ def create_bet():
 
 @app.route('/api/bets/<int:bet_id>', methods=['PUT'])
 def update_bet(bet_id):
-    """Update an existing bet"""
+    """Update bet picks and calculate payout"""
     try:
         bet = Bet.query.get_or_404(bet_id)
         data = request.json
 
-        # Update fields
-        if 'status' in data:
-            bet.status = data['status']
-        if 'payout' in data:
-            bet.payout = float(data['payout'])
-        if 'profit' in data:
-            bet.profit = float(data['profit'])
-        elif 'status' in data and data['status'] == 'won' and 'payout' in data:
-            # Auto-calculate profit if won
-            bet.profit = float(data['payout']) - bet.stake
-        elif 'status' in data and data['status'] == 'lost':
-            bet.profit = -bet.stake
-        elif 'status' in data and data['status'] == 'push':
-            bet.profit = 0.0
-            bet.payout = bet.stake
+        # Update individual pick results
+        if 'picks' in data:
+            for pick_data in data['picks']:
+                pick_id = pick_data.get('id')
+                if pick_id:
+                    pick = BetPick.query.get(pick_id)
+                    if pick and pick.bet_id == bet.id:
+                        if 'result' in pick_data:
+                            pick.result = pick_data['result']
+                        if 'actual_value' in pick_data:
+                            pick.actual_value = float(pick_data['actual_value'])
 
-        if 'result' in data:
-            bet.result = data['result']
+        # Calculate hits (number of correct picks)
+        bet.hits = sum(1 for pick in bet.picks if pick.result == 'hit')
+
+        # Auto-calculate payout based on platform and entry type
+        if bet.platform == 'PrizePicks':
+            bet.payout = calculate_prizepicks_payout(bet.stake, bet.num_picks, bet.entry_type, bet.hits)
+        elif bet.platform == 'Underdog':
+            bet.payout = calculate_underdog_payout(bet.stake, bet.num_picks, bet.entry_type, bet.hits)
+
+        # Calculate profit
+        bet.profit = bet.payout - bet.stake
+
+        # Update status
+        if bet.hits == bet.num_picks:
+            bet.status = 'won'
+        elif bet.hits == 0:
+            bet.status = 'lost'
+        elif bet.payout > 0:
+            bet.status = 'partial'  # Hit some but not all (Flex play)
+        else:
+            bet.status = 'lost'
+
+        # Update notes if provided
         if 'notes' in data:
             bet.notes = data['notes']
 
         db.session.commit()
 
-        return jsonify({'message': 'Bet updated successfully'})
+        return jsonify({
+            'message': 'Bet updated successfully',
+            'hits': bet.hits,
+            'payout': bet.payout,
+            'profit': bet.profit,
+            'status': bet.status
+        })
     except Exception as e:
         print(f"Error updating bet: {e}")
         db.session.rollback()
@@ -949,20 +1134,20 @@ def get_betting_stats():
         won_bets = Bet.query.filter_by(status='won').all()
         lost_bets = Bet.query.filter_by(status='lost').all()
         pending_bets = Bet.query.filter_by(status='pending').all()
-        push_bets = Bet.query.filter_by(status='push').all()
+        partial_bets = Bet.query.filter_by(status='partial').all()
 
         total_bets = len(all_bets)
         total_won = len(won_bets)
         total_lost = len(lost_bets)
         total_pending = len(pending_bets)
-        total_push = len(push_bets)
+        total_partial = len(partial_bets)
 
         total_staked = sum(bet.stake for bet in all_bets)
         total_profit = sum(bet.profit for bet in all_bets if bet.profit is not None)
         total_payout = sum(bet.payout for bet in all_bets if bet.payout is not None)
 
-        # Calculate win rate (excluding pending and push)
-        completed_bets = total_won + total_lost
+        # Calculate win rate (excluding pending)
+        completed_bets = total_won + total_lost + total_partial
         win_rate = (total_won / completed_bets * 100) if completed_bets > 0 else 0
 
         # Calculate ROI
@@ -976,6 +1161,7 @@ def get_betting_stats():
                     'total_bets': 0,
                     'won': 0,
                     'lost': 0,
+                    'partial': 0,
                     'profit': 0.0,
                     'staked': 0.0
                 }
@@ -985,6 +1171,8 @@ def get_betting_stats():
                 platforms[bet.platform]['won'] += 1
             elif bet.status == 'lost':
                 platforms[bet.platform]['lost'] += 1
+            elif bet.status == 'partial':
+                platforms[bet.platform]['partial'] += 1
             if bet.profit:
                 platforms[bet.platform]['profit'] += bet.profit
 
@@ -992,47 +1180,52 @@ def get_betting_stats():
         for platform in platforms:
             staked = platforms[platform]['staked']
             platforms[platform]['roi'] = (platforms[platform]['profit'] / staked * 100) if staked > 0 else 0
-            platforms[platform]['win_rate'] = (platforms[platform]['won'] / (platforms[platform]['won'] + platforms[platform]['lost']) * 100) if (platforms[platform]['won'] + platforms[platform]['lost']) > 0 else 0
+            completed = platforms[platform]['won'] + platforms[platform]['lost'] + platforms[platform]['partial']
+            platforms[platform]['win_rate'] = (platforms[platform]['won'] / completed * 100) if completed > 0 else 0
 
-        # Stats by bet type
-        bet_types = {}
+        # Stats by entry type
+        entry_types = {}
         for bet in all_bets:
-            if bet.bet_type not in bet_types:
-                bet_types[bet.bet_type] = {
+            if bet.entry_type not in entry_types:
+                entry_types[bet.entry_type] = {
                     'total_bets': 0,
                     'won': 0,
                     'lost': 0,
+                    'partial': 0,
                     'profit': 0.0,
                     'staked': 0.0
                 }
-            bet_types[bet.bet_type]['total_bets'] += 1
-            bet_types[bet.bet_type]['staked'] += bet.stake
+            entry_types[bet.entry_type]['total_bets'] += 1
+            entry_types[bet.entry_type]['staked'] += bet.stake
             if bet.status == 'won':
-                bet_types[bet.bet_type]['won'] += 1
+                entry_types[bet.entry_type]['won'] += 1
             elif bet.status == 'lost':
-                bet_types[bet.bet_type]['lost'] += 1
+                entry_types[bet.entry_type]['lost'] += 1
+            elif bet.status == 'partial':
+                entry_types[bet.entry_type]['partial'] += 1
             if bet.profit:
-                bet_types[bet.bet_type]['profit'] += bet.profit
+                entry_types[bet.entry_type]['profit'] += bet.profit
 
-        # Calculate bet type ROI
-        for bet_type in bet_types:
-            staked = bet_types[bet_type]['staked']
-            bet_types[bet_type]['roi'] = (bet_types[bet_type]['profit'] / staked * 100) if staked > 0 else 0
-            bet_types[bet_type]['win_rate'] = (bet_types[bet_type]['won'] / (bet_types[bet_type]['won'] + bet_types[bet_type]['lost']) * 100) if (bet_types[bet_type]['won'] + bet_types[bet_type]['lost']) > 0 else 0
+        # Calculate entry type ROI
+        for entry_type in entry_types:
+            staked = entry_types[entry_type]['staked']
+            entry_types[entry_type]['roi'] = (entry_types[entry_type]['profit'] / staked * 100) if staked > 0 else 0
+            completed = entry_types[entry_type]['won'] + entry_types[entry_type]['lost'] + entry_types[entry_type]['partial']
+            entry_types[entry_type]['win_rate'] = (entry_types[entry_type]['won'] / completed * 100) if completed > 0 else 0
 
         return jsonify({
             'total_bets': total_bets,
             'won': total_won,
             'lost': total_lost,
             'pending': total_pending,
-            'push': total_push,
+            'partial': total_partial,
             'total_staked': round(total_staked, 2),
             'total_profit': round(total_profit, 2),
             'total_payout': round(total_payout, 2),
             'win_rate': round(win_rate, 2),
             'roi': round(roi, 2),
             'platforms': platforms,
-            'bet_types': bet_types
+            'entry_types': entry_types
         })
     except Exception as e:
         print(f"Error fetching betting stats: {e}")
