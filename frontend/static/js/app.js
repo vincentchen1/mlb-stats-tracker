@@ -179,7 +179,7 @@ async function loadTodaysGames() {
                                 ${game.away_pitcher ? `<div class="text-muted small mt-1">${game.away_pitcher}</div>` : ''}
                             </div>
                             <div class="col-2 text-center">
-                                <div class="vs-divider">VS</div>
+                                <div class="vs-divider">@</div>
                             </div>
                             <div class="col-5 text-center">
                                 ${game.home_team_logo ? `<img src="${game.home_team_logo}" class="team-logo mb-2" alt="${game.home_team} logo" onerror="this.style.display='none'">` : ''}
