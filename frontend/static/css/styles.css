@@ -674,6 +674,134 @@ body.light-mode #theme-toggle:hover {
     background-color: rgba(0, 0, 0, 0.2);
 }
 
+/* Weather Information */
+.weather-info {
+    background: linear-gradient(135deg, rgba(135, 206, 235, 0.1) 0%, rgba(100, 149, 237, 0.1) 100%);
+    border-radius: 8px;
+    border-left: 3px solid #87CEEB;
+}
+
+body.light-mode .weather-info {
+    background: linear-gradient(135deg, rgba(135, 206, 235, 0.15) 0%, rgba(100, 149, 237, 0.15) 100%);
+}
+
+/* Win Probability Styles */
+.win-probability-container {
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+body.light-mode .win-probability-container {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.win-prob-bar-container {
+    width: 100%;
+    margin: 10px 0;
+}
+
+.win-prob-bar {
+    display: flex;
+    height: 30px;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    position: relative;
+}
+
+.win-prob-away {
+    background: linear-gradient(90deg, #dc3545 0%, #ff6b6b 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: width 0.5s ease;
+    position: relative;
+}
+
+.win-prob-home {
+    background: linear-gradient(90deg, #28a745 0%, #4ecdc4 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: width 0.5s ease;
+    position: relative;
+}
+
+.win-prob-text {
+    color: white;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    z-index: 1;
+}
+
+/* Lineup Styles */
+.lineup-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.lineup-player {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, rgba(66, 133, 244, 0.05) 0%, rgba(78, 205, 196, 0.05) 100%);
+    border-radius: 8px;
+    border-left: 3px solid #4285f4;
+    transition: all 0.3s ease;
+}
+
+.lineup-player:hover {
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, rgba(66, 133, 244, 0.1) 0%, rgba(78, 205, 196, 0.1) 100%);
+}
+
+.lineup-order {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4285f4 0%, #4ecdc4 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    margin-right: 15px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(66, 133, 244, 0.3);
+}
+
+.lineup-info {
+    flex: 1;
+}
+
+.lineup-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.lineup-position {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.modal-content {
+    background: var(--section-bg);
+    color: var(--text-primary);
+}
+
+.modal-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+body.light-mode .modal-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
 @media (max-width: 768px) {
     .team-logo {
         width: 30px;
@@ -683,5 +811,23 @@ body.light-mode #theme-toggle:hover {
     .team-logo-large {
         width: 60px;
         height: 60px;
+    }
+
+    .win-prob-bar {
+        height: 25px;
+    }
+
+    .win-prob-text {
+        font-size: 0.75rem;
+    }
+
+    .lineup-player {
+        padding: 10px;
+    }
+
+    .lineup-order {
+        width: 25px;
+        height: 25px;
+        font-size: 0.85rem;
     }
 }

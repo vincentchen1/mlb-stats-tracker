@@ -278,7 +278,7 @@ def get_todays_games():
 def get_live_games():
     try:
         today = datetime.now().strftime('%Y-%m-%d')
-        url = f'{MLB_API_BASE}/schedule?sportId=1&date={today}&hydrate=venue,linescore,probablePitcher,seriesStatus,decisions'
+        url = f'{MLB_API_BASE}/schedule?sportId=1&date={today}&hydrate=venue,linescore,probablePitcher,seriesStatus,decisions,weather'
         response = requests.get(url, timeout=10)
 
         if response.status_code != 200:
@@ -400,15 +400,38 @@ def get_live_games():
                             'is_tied': series_status.get('isTied', False)
                         }
 
+                    # Get weather information
+                    weather_info = {}
+                    if 'weather' in game:
+                        weather_data = game['weather']
+                        weather_info = {
+                            'condition': weather_data.get('condition', 'Unknown'),
+                            'temp': weather_data.get('temp', 'N/A'),
+                            'wind': weather_data.get('wind', 'N/A')
+                        }
+
+                    # Calculate win probability
+                    home_score = game.get('teams', {}).get('home', {}).get('score', 0) or 0
+                    away_score = game.get('teams', {}).get('away', {}).get('score', 0) or 0
+                    game_status = get_game_status(game.get('status', {}))
+
+                    win_probability = calculate_win_probability(
+                        home_score,
+                        away_score,
+                        inning if inning else '1st',
+                        inning_state if inning_state else 'Top',
+                        game_status
+                    )
+
                     game_info = {
                         'id': game.get('gamePk'),
                         'home_team': home_team_data.get('name', 'TBD'),
                         'away_team': away_team_data.get('name', 'TBD'),
                         'home_team_logo': get_team_logo_url(home_team_id) if home_team_id else '',
                         'away_team_logo': get_team_logo_url(away_team_id) if away_team_id else '',
-                        'home_score': game.get('teams', {}).get('home', {}).get('score', 0) or 0,
-                        'away_score': game.get('teams', {}).get('away', {}).get('score', 0) or 0,
-                        'status': get_game_status(game.get('status', {})),
+                        'home_score': home_score,
+                        'away_score': away_score,
+                        'status': game_status,
                         'status_detail': status_detail,
                         'venue': venue_name,
                         'game_date': game_date,
@@ -417,7 +440,9 @@ def get_live_games():
                         'home_pitcher': home_pitcher,
                         'away_pitcher': away_pitcher,
                         'series': series_info,
-                        'live_data': live_data
+                        'live_data': live_data,
+                        'weather': weather_info,
+                        'win_probability': round(win_probability, 1)
                     }
                     games.append(game_info)
 
@@ -426,6 +451,61 @@ def get_live_games():
     except Exception as e:
         print(f"Error fetching live games: {e}")
         return get_fallback_games()
+
+def calculate_win_probability(home_score, away_score, inning, inning_state, status):
+    """
+    Calculate win probability for home team based on game situation.
+    Uses a simplified model based on score differential and inning.
+    """
+    if status == 'final':
+        return 100.0 if home_score > away_score else 0.0
+
+    if status == 'scheduled':
+        return 50.0  # Pre-game is 50-50
+
+    # Calculate score differential
+    score_diff = home_score - away_score
+
+    # Determine inning number
+    try:
+        inning_num = int(inning.replace('st', '').replace('nd', '').replace('rd', '').replace('th', ''))
+    except:
+        inning_num = 1
+
+    # Calculate innings remaining (estimate based on inning and state)
+    if inning_state == 'Top':
+        innings_remaining = 9.5 - inning_num
+    elif inning_state == 'Middle':
+        innings_remaining = 9.25 - inning_num
+    else:  # Bottom
+        innings_remaining = 9.0 - inning_num
+
+    if innings_remaining < 0:
+        innings_remaining = 0
+
+    # Base probability on score differential
+    # Each run is worth approximately 15% per inning remaining
+    base_prob = 50.0
+
+    if innings_remaining > 0:
+        # Adjust based on score differential and time remaining
+        adjustment = score_diff * (15.0 / (1 + innings_remaining * 0.3))
+        base_prob += adjustment
+    else:
+        # Final inning or extras
+        if score_diff > 0:
+            base_prob = 90.0 + min(score_diff * 2, 10.0)
+        elif score_diff < 0:
+            base_prob = 10.0 - min(abs(score_diff) * 2, 10.0)
+        else:
+            base_prob = 50.0
+
+    # Late inning adjustments
+    if inning_num >= 7:
+        base_prob += score_diff * 5.0
+
+    # Clamp between 0.1 and 99.9
+    return max(0.1, min(99.9, base_prob))
 
 def get_game_status(status_data):
     status_code = status_data.get('statusCode', 'S')
@@ -642,6 +722,72 @@ def get_matchup(pitcher_id, batter_id):
     except Exception as e:
         print(f"Error fetching matchup data: {e}")
         return jsonify({'message': 'No matchup data found'}), 404
+
+@app.route('/api/game/<int:game_id>/lineups')
+def get_game_lineups(game_id):
+    """Get starting lineups for a specific game"""
+    try:
+        url = f'{MLB_API_BASE}/game/{game_id}/boxscore'
+        response = requests.get(url, timeout=10)
+
+        if response.status_code != 200:
+            return jsonify({'message': 'Lineup data not available'}), 404
+
+        data = response.json()
+        teams = data.get('teams', {})
+
+        lineups = {
+            'home': [],
+            'away': []
+        }
+
+        # Process home team
+        if 'home' in teams:
+            home_team = teams['home']
+            batting_order = home_team.get('battingOrder', [])
+            players = home_team.get('players', {})
+
+            for i, player_id in enumerate(batting_order[:9], 1):  # First 9 batters
+                player_key = f'ID{player_id}'
+                if player_key in players:
+                    player = players[player_key]
+                    person = player.get('person', {})
+                    position = player.get('position', {})
+
+                    lineups['home'].append({
+                        'order': i,
+                        'name': person.get('fullName', 'Unknown'),
+                        'id': player_id,
+                        'position': position.get('abbreviation', ''),
+                        'jersey_number': player.get('jerseyNumber', '')
+                    })
+
+        # Process away team
+        if 'away' in teams:
+            away_team = teams['away']
+            batting_order = away_team.get('battingOrder', [])
+            players = away_team.get('players', {})
+
+            for i, player_id in enumerate(batting_order[:9], 1):  # First 9 batters
+                player_key = f'ID{player_id}'
+                if player_key in players:
+                    player = players[player_key]
+                    person = player.get('person', {})
+                    position = player.get('position', {})
+
+                    lineups['away'].append({
+                        'order': i,
+                        'name': person.get('fullName', 'Unknown'),
+                        'id': player_id,
+                        'position': position.get('abbreviation', ''),
+                        'jersey_number': player.get('jerseyNumber', '')
+                    })
+
+        return jsonify(lineups)
+
+    except Exception as e:
+        print(f"Error fetching lineup data: {e}")
+        return jsonify({'message': 'Lineup data not available'}), 404
 
 def initialize_sample_data():
     if Team.query.count() == 0:

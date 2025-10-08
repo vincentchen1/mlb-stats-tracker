@@ -90,6 +90,49 @@ async function loadTodaysGames() {
                 `;
             }
 
+            // Build weather display
+            let weatherDisplay = '';
+            if (game.weather && game.weather.condition) {
+                weatherDisplay = `
+                    <div class="weather-info mt-2 p-2">
+                        <div class="small text-muted">
+                            <strong>⛅ Weather:</strong> ${game.weather.condition}
+                            ${game.weather.temp !== 'N/A' ? `, ${game.weather.temp}°F` : ''}
+                            ${game.weather.wind !== 'N/A' ? ` | 🌬️ ${game.weather.wind}` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Build win probability display
+            let winProbDisplay = '';
+            if (game.win_probability !== undefined && (game.status === 'live' || game.status === 'final')) {
+                const homeProb = game.win_probability;
+                const awayProb = 100 - homeProb;
+                const homeWidth = homeProb;
+                const awayWidth = awayProb;
+
+                winProbDisplay = `
+                    <div class="win-probability-container mt-3">
+                        <div class="small text-muted mb-1 text-center"><strong>📊 Win Probability</strong></div>
+                        <div class="win-prob-bar-container">
+                            <div class="win-prob-bar">
+                                <div class="win-prob-away" style="width: ${awayWidth}%">
+                                    <span class="win-prob-text">${awayProb.toFixed(1)}%</span>
+                                </div>
+                                <div class="win-prob-home" style="width: ${homeWidth}%">
+                                    <span class="win-prob-text">${homeProb.toFixed(1)}%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between small text-muted mt-1">
+                            <span>${game.away_team}</span>
+                            <span>${game.home_team}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
             // Build live game data display (current pitcher, batter, count)
             let liveGameDisplay = '';
             if (game.live_data && game.live_data.current_pitcher && game.status === 'live') {
@@ -155,7 +198,14 @@ async function loadTodaysGames() {
                             ${gameTime ? `<div class="text-muted small">🕐 ${gameTime}</div>` : ''}
                             ${game.venue ? `<div class="text-muted small">📍 ${game.venue}</div>` : ''}
                         </div>
+                        ${weatherDisplay}
+                        ${winProbDisplay}
                         ${liveGameDisplay}
+                        <div class="text-center mt-3">
+                            <button class="btn btn-sm btn-outline-primary" onclick="showLineups(${game.id}, '${game.away_team}', '${game.home_team}')">
+                                📋 View Lineups
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -277,5 +327,85 @@ async function showTeamPlayers(teamId) {
         playersDiv.style.display = 'block';
     } catch (error) {
         console.error('Error loading players:', error);
+    }
+}
+
+async function showLineups(gameId, awayTeam, homeTeam) {
+    try {
+        const response = await fetch(`/api/game/${gameId}/lineups`);
+        const lineups = await response.json();
+
+        if (response.status === 404 || !lineups.home || !lineups.away) {
+            alert('Lineups not available for this game yet.');
+            return;
+        }
+
+        // Create modal HTML
+        const modalHtml = `
+            <div class="modal fade" id="lineupsModal" tabindex="-1" aria-labelledby="lineupsModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="lineupsModalLabel">Starting Lineups</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-center mb-3">${awayTeam}</h6>
+                                    <div class="lineup-list">
+                                        ${lineups.away.map(player => `
+                                            <div class="lineup-player">
+                                                <span class="lineup-order">${player.order}</span>
+                                                <div class="lineup-info">
+                                                    <div class="lineup-name">${player.name}</div>
+                                                    <div class="lineup-position">${player.position} ${player.jersey_number ? `#${player.jersey_number}` : ''}</div>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-center mb-3">${homeTeam}</h6>
+                                    <div class="lineup-list">
+                                        ${lineups.home.map(player => `
+                                            <div class="lineup-player">
+                                                <span class="lineup-order">${player.order}</span>
+                                                <div class="lineup-info">
+                                                    <div class="lineup-name">${player.name}</div>
+                                                    <div class="lineup-position">${player.position} ${player.jersey_number ? `#${player.jersey_number}` : ''}</div>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('lineupsModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('lineupsModal'));
+        modal.show();
+
+        // Clean up modal when closed
+        document.getElementById('lineupsModal').addEventListener('hidden.bs.modal', function () {
+            this.remove();
+        });
+
+    } catch (error) {
+        console.error('Error loading lineups:', error);
+        alert('Error loading lineups. Please try again later.');
     }
 }
