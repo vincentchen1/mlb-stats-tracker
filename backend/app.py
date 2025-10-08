@@ -162,7 +162,7 @@ def calculate_underdog_payout(stake, num_picks, entry_type, hits):
 
     Flex Entry (can miss one):
     3-Pick: 6x (3/3)
-    4-Pick: 10x (4/4), 2x (3/4)
+    4-Pick: 6x (4/4), 1.5x (3/4)
     5-Pick: 20x (5/5), 3x (4/5)
     """
     if entry_type == 'Standard':
@@ -187,15 +187,15 @@ def calculate_underdog_payout(stake, num_picks, entry_type, hits):
         # All correct multipliers
         all_correct_multipliers = {
             3: 6.0,
-            4: 10.0,
+            4: 6.0,
             5: 20.0
         }
 
         # Partial hit multipliers (miss one)
         partial_multipliers = {
-            3: 0.0,  # 2/3 = loss
-            4: 2.0,  # 3/4 = 2x
-            5: 3.0   # 4/5 = 3x
+            3: 0.0,   # 2/3 = loss
+            4: 1.5,   # 3/4 = 1.5x
+            5: 3.0    # 4/5 = 3x
         }
 
         if hits == num_picks:

@@ -6,7 +6,7 @@ let currentBetData = null;
 const PRIZEPICKS_POWER = {2: 3, 3: 6, 4: 12, 5: 20, 6: 37.5};
 const PRIZEPICKS_FLEX = {3: 3, 4: 6, 5: 10, 6: 25};
 const UNDERDOG_STANDARD = {2: 3, 3: 6, 4: 10, 5: 20};
-const UNDERDOG_FLEX = {3: 6, 4: 10, 5: 20};
+const UNDERDOG_FLEX = {3: 6, 4: 6, 5: 20};
 
 document.addEventListener('DOMContentLoaded', function() {
     loadStats();
@@ -150,7 +150,7 @@ function updatePayoutPreview() {
             const allMultiplier = UNDERDOG_FLEX[numPicks] || 0;
             payoutText = `${numPicks}-Pick Flex: ${numPicks}/${numPicks} = ${allMultiplier}x ($${(stake * allMultiplier).toFixed(2)})`;
 
-            if (numPicks === 4) payoutText += `, 3/4 = 2x ($${(stake * 2).toFixed(2)})`;
+            if (numPicks === 4) payoutText += `, 3/4 = 1.5x ($${(stake * 1.5).toFixed(2)})`;
             if (numPicks === 5) payoutText += `, 4/5 = 3x ($${(stake * 3).toFixed(2)})`;
         }
     }
