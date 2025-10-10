@@ -44,7 +44,15 @@
     <div class="container mt-4">
         <!-- Today's Games Section -->
         <section id="games" class="mb-5">
-            <h2 class="mb-4" id="games-title">Today's MLB Games</h2>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0" id="games-title">Today's MLB Games</h2>
+                <div class="d-flex gap-2 align-items-center">
+                    <button class="btn btn-sm btn-outline-primary" id="prev-day-btn">← Previous Day</button>
+                    <input type="date" class="form-control form-control-sm" id="date-picker" style="width: auto;">
+                    <button class="btn btn-sm btn-outline-primary" id="next-day-btn">Next Day →</button>
+                    <button class="btn btn-sm btn-primary" id="today-btn">Today</button>
+                </div>
+            </div>
             <div class="row" id="games-container">
                 <div class="col-12">
                     <div class="text-center">

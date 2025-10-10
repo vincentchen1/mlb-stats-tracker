@@ -1,11 +1,122 @@
+let currentDate = new Date();
+
+// MLB Team color mapping (based on ESPN/official team colors)
+const teamColors = {
+    'Los Angeles Dodgers': '#005A9C',
+    'New York Yankees': '#0C2340',
+    'Houston Astros': '#EB6E1F',
+    'Atlanta Braves': '#CE1141',
+    'Philadelphia Phillies': '#E81828',
+    'San Diego Padres': '#FFC425',
+    'New York Mets': '#002D72',
+    'St. Louis Cardinals': '#C41E3A',
+    'Seattle Mariners': '#005C5C',
+    'Toronto Blue Jays': '#134A8E',
+    'Tampa Bay Rays': '#8FBCE6',
+    'Boston Red Sox': '#BD3039',
+    'Cleveland Guardians': '#E31937',
+    'Chicago White Sox': '#27251F',
+    'Minnesota Twins': '#002B5C',
+    'Detroit Tigers': '#0C2340',
+    'Kansas City Royals': '#004687',
+    'Los Angeles Angels': '#BA0021',
+    'Texas Rangers': '#003278',
+    'Oakland Athletics': '#003831',
+    'Milwaukee Brewers': '#FFC52F',
+    'Chicago Cubs': '#0E3386',
+    'Cincinnati Reds': '#C6011F',
+    'Pittsburgh Pirates': '#FDB827',
+    'Arizona Diamondbacks': '#A71930',
+    'Colorado Rockies': '#33006F',
+    'San Francisco Giants': '#FD5A1E',
+    'Washington Nationals': '#AB0003',
+    'Miami Marlins': '#00A3E0',
+    'Baltimore Orioles': '#DF4601'
+};
+
+// Get contrasting colors if teams have similar colors
+function getContrastingColors(team1, team2) {
+    const color1 = teamColors[team1] || '#DC3545';
+    const color2 = teamColors[team2] || '#10B981';
+
+    // Check if colors are similar (very basic check)
+    const areSimilar = color1.substring(0, 3) === color2.substring(0, 3);
+
+    if (areSimilar) {
+        // Return contrasting versions
+        return {
+            color1: adjustBrightness(color1, -40),
+            color2: adjustBrightness(color2, 60)
+        };
+    }
+
+    return { color1, color2 };
+}
+
+// Adjust color brightness
+function adjustBrightness(hex, percent) {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+        (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+        (B < 255 ? B < 1 ? 0 : B : 255))
+        .toString(16).slice(1);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    loadTodaysGames();
+    setupDatePicker();
+    loadGamesForDate(currentDate);
     loadTeams();
     setupThemeToggle();
 
-    // Auto-refresh games every 15 seconds
-    setInterval(loadTodaysGames, 15000);
+    // Auto-refresh games every 15 seconds (only if viewing today)
+    setInterval(() => {
+        const today = new Date();
+        if (currentDate.toDateString() === today.toDateString()) {
+            loadGamesForDate(currentDate);
+        }
+    }, 15000);
 });
+
+function setupDatePicker() {
+    const datePicker = document.getElementById('date-picker');
+    const prevBtn = document.getElementById('prev-day-btn');
+    const nextBtn = document.getElementById('next-day-btn');
+    const todayBtn = document.getElementById('today-btn');
+
+    // Set initial date
+    datePicker.valueAsDate = currentDate;
+
+    // Date picker change
+    datePicker.addEventListener('change', function() {
+        currentDate = new Date(this.value);
+        loadGamesForDate(currentDate);
+    });
+
+    // Previous day button
+    prevBtn.addEventListener('click', function() {
+        currentDate.setDate(currentDate.getDate() - 1);
+        datePicker.valueAsDate = currentDate;
+        loadGamesForDate(currentDate);
+    });
+
+    // Next day button
+    nextBtn.addEventListener('click', function() {
+        currentDate.setDate(currentDate.getDate() + 1);
+        datePicker.valueAsDate = currentDate;
+        loadGamesForDate(currentDate);
+    });
+
+    // Today button
+    todayBtn.addEventListener('click', function() {
+        currentDate = new Date();
+        datePicker.valueAsDate = currentDate;
+        loadGamesForDate(currentDate);
+    });
+}
 
 function setupThemeToggle() {
     const themeToggle = document.getElementById('theme-toggle');
@@ -35,15 +146,16 @@ function setupThemeToggle() {
     });
 }
 
-async function loadTodaysGames() {
+async function loadGamesForDate(date) {
     try {
-        // Update title with today's date
-        const today = new Date();
+        // Update title with selected date
         const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        const formattedDate = today.toLocaleDateString('en-US', dateOptions);
+        const formattedDate = date.toLocaleDateString('en-US', dateOptions);
         document.getElementById('games-title').textContent = `MLB Games - ${formattedDate}`;
 
-        const response = await fetch('/api/games/today');
+        // Format date as YYYY-MM-DD for API
+        const dateStr = date.toISOString().split('T')[0];
+        const response = await fetch(`/api/games/${dateStr}`);
         const games = await response.json();
 
         const container = document.getElementById('games-container');
@@ -109,25 +221,61 @@ async function loadTodaysGames() {
             if (game.win_probability !== undefined && (game.status === 'live' || game.status === 'final')) {
                 const homeProb = game.win_probability;
                 const awayProb = 100 - homeProb;
-                const homeWidth = homeProb;
-                const awayWidth = awayProb;
+
+                // Handle 100% case - only show that team, no minimum width
+                let homeWidth, awayWidth, showAwayText, showHomeText;
+
+                if (homeProb === 100) {
+                    homeWidth = 100;
+                    awayWidth = 0;
+                    showAwayText = false;
+                    showHomeText = true;
+                } else if (awayProb === 100) {
+                    homeWidth = 0;
+                    awayWidth = 100;
+                    showAwayText = true;
+                    showHomeText = false;
+                } else {
+                    // Normal case - show both with minimum 8% for visibility
+                    homeWidth = Math.max(homeProb, 8);
+                    awayWidth = Math.max(awayProb, 8);
+                    showAwayText = awayProb > 5;
+                    showHomeText = homeProb > 5;
+                }
+
+                // Get team-specific colors
+                const colors = getContrastingColors(game.away_team, game.home_team);
 
                 winProbDisplay = `
                     <div class="win-probability-container mt-3">
                         <div class="small text-muted mb-1 text-center"><strong>📊 Win Probability</strong></div>
                         <div class="win-prob-bar-container">
                             <div class="win-prob-bar">
-                                <div class="win-prob-away" style="width: ${awayWidth}%">
-                                    <span class="win-prob-text">${awayProb.toFixed(1)}%</span>
-                                </div>
-                                <div class="win-prob-home" style="width: ${homeWidth}%">
-                                    <span class="win-prob-text">${homeProb.toFixed(1)}%</span>
-                                </div>
+                                ${awayWidth > 0 ? `
+                                    <div class="win-prob-away" style="width: ${awayWidth}%; background: ${colors.color1};">
+                                        ${showAwayText ? `
+                                            <div class="win-prob-team-info">
+                                                <img src="${game.away_team_logo}" class="win-prob-logo" alt="${game.away_team}" onerror="this.style.display='none'">
+                                                <span class="win-prob-text">${awayProb.toFixed(1)}%</span>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                ` : ''}
+                                ${homeWidth > 0 ? `
+                                    <div class="win-prob-home" style="width: ${homeWidth}%; background: ${colors.color2};">
+                                        ${showHomeText ? `
+                                            <div class="win-prob-team-info">
+                                                <span class="win-prob-text">${homeProb.toFixed(1)}%</span>
+                                                <img src="${game.home_team_logo}" class="win-prob-logo" alt="${game.home_team}" onerror="this.style.display='none'">
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
-                        <div class="d-flex justify-content-between small text-muted mt-1">
-                            <span>${game.away_team}</span>
-                            <span>${game.home_team}</span>
+                        <div class="d-flex justify-content-between small text-muted mt-2">
+                            <span style="font-weight: 600;">${game.away_team}</span>
+                            <span style="font-weight: 600;">${game.home_team}</span>
                         </div>
                     </div>
                 `;
@@ -267,6 +415,8 @@ async function loadTeams() {
                                         <h5 class="card-title">
                                             ${team.city ? team.city + ' ' : ''}${team.name}
                                             ${team.display_indicator ? `<span class="clinch-badge ${team.clinch_indicator === 'e' ? 'eliminated' : ''}">${team.display_indicator}</span>` : ''}
+                                            ${team.postseason_status === 'WS_CHAMP' ? '<span class="clinch-badge advanced">🏆 CHAMP</span>' : ''}
+                                            ${team.postseason_status && team.postseason_status.startsWith('ELIM_') ? `<span class="clinch-badge postseason-elim" title="${team.postseason_description}">${team.postseason_round}</span>` : ''}
                                         </h5>
                                         ${team.wins !== undefined ? `
                                             <div class="standings-info mb-2">

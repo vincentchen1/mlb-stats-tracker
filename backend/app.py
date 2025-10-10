@@ -230,6 +230,24 @@ def get_live_teams():
     try:
         current_year = datetime.now().year
 
+        # 2024 Postseason Results - Manual tracking
+        postseason_status_2024 = {
+            147: {'status': 'ELIM_WS', 'round': 'World Series', 'description': 'Lost World Series'},  # Yankees
+            119: {'status': 'WS_CHAMP', 'round': 'World Series', 'description': 'Won World Series'},  # Dodgers
+            121: {'status': 'ELIM_NLCS', 'round': 'NLCS', 'description': 'Lost NLCS'},  # Mets
+            158: {'status': 'ELIM_NL_WC', 'round': 'NL Wild Card', 'description': 'Lost NL Wild Card'},  # Brewers
+            143: {'status': 'ELIM_NLDS', 'round': 'NLDS', 'description': 'Lost NLDS'},  # Phillies
+            135: {'status': 'ELIM_NL_WC', 'round': 'NL Wild Card', 'description': 'Lost NL Wild Card'},  # Padres
+            144: {'status': 'ELIM_NL_WC', 'round': 'NL Wild Card', 'description': 'Lost NL Wild Card'},  # Braves
+            109: {'status': 'ELIM_NL_WC', 'round': 'NL Wild Card', 'description': 'Lost NL Wild Card'},  # Diamondbacks
+            114: {'status': 'ELIM_ALCS', 'round': 'ALCS', 'description': 'Lost ALCS'},  # Guardians
+            117: {'status': 'ELIM_ALDS', 'round': 'ALDS', 'description': 'Lost ALDS'},  # Astros
+            116: {'status': 'ELIM_ALDS', 'round': 'ALDS', 'description': 'Lost ALDS'},  # Tigers
+            141: {'status': 'ELIM_AL_WC', 'round': 'AL Wild Card', 'description': 'Lost AL Wild Card'},  # Blue Jays
+            110: {'status': 'ELIM_AL_WC', 'round': 'AL Wild Card', 'description': 'Lost AL Wild Card'},  # Orioles
+            118: {'status': 'ELIM_AL_WC', 'round': 'AL Wild Card', 'description': 'Lost AL Wild Card'},  # Royals
+        }
+
         # Fetch teams data
         url = f'{MLB_API_BASE}/teams?sportId=1'
         response = requests.get(url, timeout=10)
@@ -366,6 +384,13 @@ def get_live_teams():
                 if team_id in standings_data:
                     team_info.update(standings_data[team_id])
 
+                # Add postseason status for 2024
+                if current_year == 2024 and team_id in postseason_status_2024:
+                    ps_status = postseason_status_2024[team_id]
+                    team_info['postseason_status'] = ps_status['status']
+                    team_info['postseason_round'] = ps_status['round']
+                    team_info['postseason_description'] = ps_status['description']
+
                 teams.append(team_info)
 
         return jsonify(teams if teams else get_fallback_teams_data())
@@ -425,10 +450,18 @@ def get_fallback_teams_data():
 def get_todays_games():
     return get_live_games()
 
-def get_live_games():
+@app.route('/api/games/<date_str>')
+def get_games_by_date(date_str):
+    """Get games for a specific date (YYYY-MM-DD format)"""
+    return get_live_games(date_str)
+
+def get_live_games(date_str=None):
     try:
-        today = datetime.now().strftime('%Y-%m-%d')
-        url = f'{MLB_API_BASE}/schedule?sportId=1&date={today}&hydrate=venue,linescore,probablePitcher,seriesStatus,decisions,weather'
+        # Use provided date or default to today
+        if date_str is None:
+            date_str = datetime.now().strftime('%Y-%m-%d')
+
+        url = f'{MLB_API_BASE}/schedule?sportId=1&date={date_str}&hydrate=venue,linescore,probablePitcher,seriesStatus,decisions,weather'
         response = requests.get(url, timeout=10)
 
         if response.status_code != 200:
