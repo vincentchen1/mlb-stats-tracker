@@ -126,33 +126,45 @@ function setupDatePicker() {
     const nextBtn = document.getElementById('next-day-btn');
     const todayBtn = document.getElementById('today-btn');
 
-    // Set initial date
-    datePicker.valueAsDate = currentDate;
+    // Set initial date using local timezone
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const day = String(currentDate.getDate()).padStart(2, '0');
+    datePicker.value = `${year}-${month}-${day}`;
 
     // Date picker change
     datePicker.addEventListener('change', function() {
-        currentDate = new Date(this.value);
+        currentDate = new Date(this.value + 'T00:00:00');
         loadGamesForDate(currentDate);
     });
 
     // Previous day button
     prevBtn.addEventListener('click', function() {
         currentDate.setDate(currentDate.getDate() - 1);
-        datePicker.valueAsDate = currentDate;
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        datePicker.value = `${year}-${month}-${day}`;
         loadGamesForDate(currentDate);
     });
 
     // Next day button
     nextBtn.addEventListener('click', function() {
         currentDate.setDate(currentDate.getDate() + 1);
-        datePicker.valueAsDate = currentDate;
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        datePicker.value = `${year}-${month}-${day}`;
         loadGamesForDate(currentDate);
     });
 
     // Today button
     todayBtn.addEventListener('click', function() {
         currentDate = new Date();
-        datePicker.valueAsDate = currentDate;
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        datePicker.value = `${year}-${month}-${day}`;
         loadGamesForDate(currentDate);
     });
 }
@@ -256,8 +268,12 @@ async function loadGamesForDate(date) {
         const formattedDate = date.toLocaleDateString('en-US', dateOptions);
         document.getElementById('games-title').textContent = `MLB Games - ${formattedDate}`;
 
-        // Format date as YYYY-MM-DD for API
-        const dateStr = date.toISOString().split('T')[0];
+        // Format date as YYYY-MM-DD for API using local timezone
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+
         const response = await fetch(`/api/games/${dateStr}`);
         const games = await response.json();
 
