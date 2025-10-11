@@ -66,6 +66,45 @@ function adjustBrightness(hex, percent) {
         .toString(16).slice(1);
 }
 
+// Favorites system
+let favoriteTeams = JSON.parse(localStorage.getItem('favoriteTeams')) || [];
+let showFavoritesOnly = false;
+
+function toggleFavoritesFilter() {
+    showFavoritesOnly = !showFavoritesOnly;
+    const btn = document.getElementById('favorites-filter-btn');
+
+    if (showFavoritesOnly) {
+        btn.classList.remove('btn-outline-warning');
+        btn.classList.add('btn-warning');
+        btn.textContent = '⭐ Showing Favorites';
+    } else {
+        btn.classList.remove('btn-warning');
+        btn.classList.add('btn-outline-warning');
+        btn.textContent = '⭐ Favorites Only';
+    }
+
+    loadTeams(); // Reload teams with filter
+}
+
+function toggleFavorite(teamId, teamName) {
+    const index = favoriteTeams.findIndex(t => t.id === teamId);
+
+    if (index > -1) {
+        favoriteTeams.splice(index, 1);
+    } else {
+        favoriteTeams.push({ id: teamId, name: teamName });
+    }
+
+    localStorage.setItem('favoriteTeams', JSON.stringify(favoriteTeams));
+    loadTeams(); // Reload to update star icons
+    loadGamesForDate(currentDate); // Reload games to update highlights
+}
+
+function isFavorite(teamId) {
+    return favoriteTeams.some(t => t.id === teamId);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     setupDatePicker();
     loadGamesForDate(currentDate);
@@ -146,6 +185,70 @@ function setupThemeToggle() {
     });
 }
 
+function updateScoreSummary(games) {
+    const summaryContent = document.getElementById('score-summary-content');
+    const gamesCount = document.getElementById('games-count');
+
+    if (games.length === 0) {
+        summaryContent.innerHTML = '<div class="text-center py-2 text-muted">No games today</div>';
+        gamesCount.textContent = '0 games';
+        return;
+    }
+
+    gamesCount.textContent = `${games.length} game${games.length !== 1 ? 's' : ''}`;
+
+    summaryContent.innerHTML = games.map(game => {
+        const awayScore = game.away_score || '-';
+        const homeScore = game.home_score || '-';
+        const statusClass = game.status === 'live' ? 'live' : game.status === 'final' ? 'final' : 'scheduled';
+
+        // Determine winner for final games
+        const awayWinner = game.status === 'final' && parseInt(game.away_score) > parseInt(game.home_score);
+        const homeWinner = game.status === 'final' && parseInt(game.home_score) > parseInt(game.away_score);
+
+        // Get short team names
+        const awayShort = game.away_team.split(' ').pop();
+        const homeShort = game.home_team.split(' ').pop();
+
+        // Status display
+        let statusText = game.status_detail || game.status;
+        if (game.status === 'live' && game.inning) {
+            statusText = `${game.inning_state || ''} ${game.inning}`.trim();
+        }
+
+        return `
+            <div class="score-summary-game ${statusClass}" onclick="scrollToGame(${game.id})">
+                <div class="score-team ${awayWinner ? 'winner' : ''}">
+                    <div class="score-team-name">
+                        ${game.away_team_logo ? `<img src="${game.away_team_logo}" class="score-team-logo" alt="${awayShort}">` : ''}
+                        ${awayShort}
+                    </div>
+                    <div class="score-team-score">${awayScore}</div>
+                </div>
+                <div class="score-team ${homeWinner ? 'winner' : ''}">
+                    <div class="score-team-name">
+                        ${game.home_team_logo ? `<img src="${game.home_team_logo}" class="score-team-logo" alt="${homeShort}">` : ''}
+                        ${homeShort}
+                    </div>
+                    <div class="score-team-score">${homeScore}</div>
+                </div>
+                <div class="score-status ${statusClass}">${statusText}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function scrollToGame(gameId) {
+    const gameCard = document.querySelector(`[data-game-id="${gameId}"]`);
+    if (gameCard) {
+        gameCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        gameCard.style.animation = 'highlight 1s ease';
+        setTimeout(() => {
+            gameCard.style.animation = '';
+        }, 1000);
+    }
+}
+
 async function loadGamesForDate(date) {
     try {
         // Update title with selected date
@@ -157,6 +260,9 @@ async function loadGamesForDate(date) {
         const dateStr = date.toISOString().split('T')[0];
         const response = await fetch(`/api/games/${dateStr}`);
         const games = await response.json();
+
+        // Update score summary
+        updateScoreSummary(games);
 
         const container = document.getElementById('games-container');
 
@@ -323,10 +429,16 @@ async function loadGamesForDate(date) {
             const homeCity = homeTeamParts.slice(0, -1).join(' ');
             const homeName = homeTeamParts[homeTeamParts.length - 1];
 
+            // Check if either team is a favorite
+            const isAwayFavorite = favoriteTeams.some(t => t.name === game.away_team);
+            const isHomeFavorite = favoriteTeams.some(t => t.name === game.home_team);
+            const isFavoriteGame = isAwayFavorite || isHomeFavorite;
+
             return `
             <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card game-card">
+                <div class="card game-card ${isFavoriteGame ? 'favorite-game' : ''}" data-game-id="${game.id}">
                     <div class="card-body">
+                        ${isFavoriteGame ? '<div class="favorite-indicator">⭐ Favorite Team</div>' : ''}
                         ${seriesDisplay}
                         <div class="row align-items-center">
                             <div class="col-5 text-center">
@@ -393,7 +505,13 @@ async function loadTeams() {
 
         const teamsContainer = document.getElementById('teams-container');
         teamsContainer.innerHTML = divisions.map(division => {
-            const divisionTeams = teams.filter(team => team.division === division);
+            let divisionTeams = teams.filter(team => team.division === division);
+
+            // Filter by favorites if enabled
+            if (showFavoritesOnly) {
+                divisionTeams = divisionTeams.filter(team => isFavorite(team.id));
+            }
+
             if (divisionTeams.length === 0) return '';
 
             // Sort teams by division rank
@@ -407,13 +525,20 @@ async function loadTeams() {
                 <div class="col-12 mb-4">
                     <h4 class="division-header">${division}</h4>
                     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3">
-                        ${divisionTeams.map(team => `
+                        ${divisionTeams.map(team => {
+                            const teamFullName = `${team.city ? team.city + ' ' : ''}${team.name}`;
+                            const isFav = isFavorite(team.id);
+
+                            return `
                             <div class="col">
-                                <div class="card team-card h-100">
-                                    <div class="card-body text-center d-flex flex-column">
+                                <div class="card team-card h-100 ${isFav ? 'favorite-team' : ''}">
+                                    <div class="card-body text-center d-flex flex-column position-relative">
+                                        <button class="favorite-star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite(${team.id}, '${teamFullName}')" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
+                                            ${isFav ? '★' : '☆'}
+                                        </button>
                                         ${team.logo_url ? `<img src="${team.logo_url}" class="team-logo-large mb-3" alt="${team.city} ${team.name} logo" onerror="this.style.display='none'">` : ''}
                                         <h5 class="card-title">
-                                            ${team.city ? team.city + ' ' : ''}${team.name}
+                                            ${teamFullName}
                                             ${team.display_indicator ? `<span class="clinch-badge ${team.clinch_indicator === 'e' ? 'eliminated' : ''}">${team.display_indicator}</span>` : ''}
                                             ${team.postseason_status === 'WS_CHAMP' ? '<span class="clinch-badge advanced">🏆 CHAMP</span>' : ''}
                                             ${team.postseason_status && team.postseason_status.startsWith('ELIM_') ? `<span class="clinch-badge postseason-elim" title="${team.postseason_description}">${team.postseason_round}</span>` : ''}
@@ -440,7 +565,7 @@ async function loadTeams() {
                                     </div>
                                 </div>
                             </div>
-                        `).join('')}
+                        `}).join('')}
                     </div>
                 </div>
             `;
@@ -578,5 +703,172 @@ async function showLineups(gameId, awayTeam, homeTeam) {
     } catch (error) {
         console.error('Error loading lineups:', error);
         alert('Error loading lineups. Please try again later.');
+    }
+}
+
+async function showPlayerStats(playerId, playerName) {
+    try {
+        const response = await fetch(`/api/player/${playerId}/stats`);
+        const player = await response.json();
+
+        if (response.status === 404 || player.error) {
+            alert('Player stats not available.');
+            return;
+        }
+
+        // Determine if player is pitcher or hitter based on stats
+        const isPitcher = player.stats.some(s => s.era !== undefined);
+        const isHitter = player.stats.some(s => s.avg !== undefined);
+
+        // Build stats table
+        let statsTable = '';
+
+        if (isHitter) {
+            const hitterStats = player.stats.filter(s => s.avg !== undefined).slice(0, 5);
+            statsTable += `
+                <h6 class="mb-3">Hitting Stats</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Season</th>
+                                <th>Team</th>
+                                <th>G</th>
+                                <th>AB</th>
+                                <th>H</th>
+                                <th>AVG</th>
+                                <th>HR</th>
+                                <th>RBI</th>
+                                <th>OBP</th>
+                                <th>SLG</th>
+                                <th>OPS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${hitterStats.map(stat => `
+                                <tr>
+                                    <td><strong>${stat.season}</strong></td>
+                                    <td>${stat.team}</td>
+                                    <td>${stat.gamesPlayed}</td>
+                                    <td>${stat.atBats}</td>
+                                    <td>${stat.hits}</td>
+                                    <td>${stat.avg}</td>
+                                    <td>${stat.homeRuns}</td>
+                                    <td>${stat.rbi}</td>
+                                    <td>${stat.obp}</td>
+                                    <td>${stat.slg}</td>
+                                    <td>${stat.ops}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        if (isPitcher) {
+            const pitcherStats = player.stats.filter(s => s.era !== undefined).slice(0, 5);
+            statsTable += `
+                <h6 class="mb-3 ${isHitter ? 'mt-4' : ''}">Pitching Stats</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Season</th>
+                                <th>Team</th>
+                                <th>G</th>
+                                <th>GS</th>
+                                <th>W</th>
+                                <th>L</th>
+                                <th>ERA</th>
+                                <th>IP</th>
+                                <th>K</th>
+                                <th>BB</th>
+                                <th>WHIP</th>
+                                <th>SV</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${pitcherStats.map(stat => `
+                                <tr>
+                                    <td><strong>${stat.season}</strong></td>
+                                    <td>${stat.team}</td>
+                                    <td>${stat.gamesPlayed}</td>
+                                    <td>${stat.gamesStarted}</td>
+                                    <td>${stat.wins}</td>
+                                    <td>${stat.losses}</td>
+                                    <td>${stat.era}</td>
+                                    <td>${stat.inningsPitched}</td>
+                                    <td>${stat.strikeOuts}</td>
+                                    <td>${stat.walks}</td>
+                                    <td>${stat.whip}</td>
+                                    <td>${stat.saves}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Create modal HTML
+        const modalHtml = `
+            <div class="modal fade" id="playerStatsModal" tabindex="-1" aria-labelledby="playerStatsModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="playerStatsModalLabel">Player Statistics</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row mb-4">
+                                <div class="col-md-3 text-center">
+                                    <img src="${player.headshot}" alt="${player.fullName}" class="img-fluid rounded" style="max-width: 200px;" onerror="this.style.display='none'">
+                                </div>
+                                <div class="col-md-9">
+                                    <h3>${player.fullName} #${player.primaryNumber}</h3>
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <p class="mb-1"><strong>Team:</strong> ${player.currentTeam}</p>
+                                            <p class="mb-1"><strong>Position:</strong> ${player.primaryPosition}</p>
+                                            <p class="mb-1"><strong>Age:</strong> ${player.age}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p class="mb-1"><strong>Bats/Throws:</strong> ${player.bats}/${player.throws}</p>
+                                            <p class="mb-1"><strong>Height/Weight:</strong> ${player.height}, ${player.weight} lbs</p>
+                                            <p class="mb-1"><strong>Birth Date:</strong> ${player.birthDate}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <hr>
+                            ${statsTable || '<p class="text-muted">No stats available</p>'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('playerStatsModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('playerStatsModal'));
+        modal.show();
+
+        // Clean up modal when closed
+        document.getElementById('playerStatsModal').addEventListener('hidden.bs.modal', function () {
+            this.remove();
+        });
+
+    } catch (error) {
+        console.error('Error loading player stats:', error);
+        alert('Error loading player stats. Please try again later.');
     }
 }

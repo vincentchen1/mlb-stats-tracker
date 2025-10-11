@@ -42,6 +42,23 @@
     </nav>
 
     <div class="container mt-4">
+        <!-- Quick Score Summary -->
+        <section id="score-summary" class="mb-4">
+            <div class="score-summary-container">
+                <div class="score-summary-header">
+                    <span class="score-summary-title">📊 Live Scores</span>
+                    <span class="score-summary-count" id="games-count">0 games</span>
+                </div>
+                <div class="score-summary-scroll" id="score-summary-content">
+                    <div class="text-center py-2">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Today's Games Section -->
         <section id="games" class="mb-5">
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -68,9 +85,14 @@
         <section id="teams" class="mb-5">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2 class="mb-0" id="teams-title">MLB Teams - 2025 Season</h2>
-                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#legendModal">
-                    📊 Playoff Legend
-                </button>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-warning" id="favorites-filter-btn" onclick="toggleFavoritesFilter()">
+                        ⭐ Favorites Only
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#legendModal">
+                        📊 Playoff Legend
+                    </button>
+                </div>
             </div>
             <div class="row" id="teams-container">
                 <div class="col-12">
