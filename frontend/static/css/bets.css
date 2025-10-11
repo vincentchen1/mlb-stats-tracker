@@ -257,6 +257,43 @@ body.light-mode .form-select:focus {
     font-weight: 600;
 }
 
+/* Chart Container Styles */
+.analytics-card canvas {
+    max-width: 100%;
+    height: auto !important;
+}
+
+.analytics-card h6 {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 15px;
+}
+
+/* Monthly Stats Table */
+#monthly-stats .table {
+    margin-bottom: 0;
+    font-size: 0.95rem;
+}
+
+#monthly-stats .table thead {
+    background: #2563eb;
+    color: white;
+}
+
+#monthly-stats .table thead th {
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 12px;
+}
+
+#monthly-stats .table tbody td {
+    padding: 12px;
+}
+
+#monthly-stats .table tbody tr:hover {
+    background: rgba(37, 99, 235, 0.06);
+}
+
 @media (max-width: 768px) {
     .stat-card {
         margin-bottom: 15px;
@@ -282,5 +319,13 @@ body.light-mode .form-select:focus {
     .btn-sm {
         padding: 3px 6px;
         font-size: 0.75rem;
+    }
+
+    .analytics-card canvas {
+        max-height: 250px !important;
+    }
+
+    #monthly-stats {
+        font-size: 0.8rem;
     }
 }
