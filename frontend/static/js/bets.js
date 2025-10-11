@@ -431,7 +431,7 @@ async function viewBetDetails(betId) {
                                 <td>${pick.line}</td>
                                 <td>${pick.pick === 'higher' ? 'Higher ▲' : 'Lower ▼'}</td>
                                 <td>
-                                    <select class="form-select form-select-sm pick-result" data-pick-id="${pick.id}" ${bet.status !== 'pending' ? 'disabled' : ''}>
+                                    <select class="form-select form-select-sm pick-result" data-pick-id="${pick.id}">
                                         <option value="pending" ${pick.result === 'pending' ? 'selected' : ''}>Pending</option>
                                         <option value="hit" ${pick.result === 'hit' ? 'selected' : ''}>Hit ✓</option>
                                         <option value="miss" ${pick.result === 'miss' ? 'selected' : ''}>Miss ✗</option>
