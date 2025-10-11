@@ -99,21 +99,22 @@ h2 {
 }
 
 #games-title {
-    font-size: 1.75rem;
+    font-size: 2rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    font-weight: 600;
 }
 
 @media (max-width: 991px) {
     #games-title {
-        font-size: 1.5rem;
+        font-size: 1.65rem;
     }
 }
 
 @media (max-width: 768px) {
     #games-title {
-        font-size: 1.25rem;
+        font-size: 1.4rem;
         white-space: normal;
     }
 }
@@ -362,6 +363,17 @@ body.light-mode .live-game-data {
     color: #ffe66d;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
     animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes highlight {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    50% {
+        transform: scale(1.03);
+        box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+    }
 }
 
 @keyframes pulse {
@@ -745,6 +757,194 @@ body.light-mode .win-probability-container {
     padding: 2px;
 }
 
+/* Quick Score Summary */
+.score-summary-container {
+    background: var(--section-bg);
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.score-summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.score-summary-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--accent-primary);
+}
+
+.score-summary-count {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.score-summary-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 5px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-primary) transparent;
+}
+
+.score-summary-scroll::-webkit-scrollbar {
+    height: 6px;
+}
+
+.score-summary-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.score-summary-scroll::-webkit-scrollbar-thumb {
+    background: var(--accent-primary);
+    border-radius: 3px;
+}
+
+.score-summary-game {
+    min-width: 200px;
+    background: var(--card-bg-1);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.score-summary-game:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: var(--accent-primary);
+}
+
+.score-summary-game.live {
+    border-color: #ea580c;
+    background: linear-gradient(135deg, var(--card-bg-1) 0%, rgba(234, 88, 12, 0.05) 100%);
+}
+
+.score-summary-game.final {
+    opacity: 0.8;
+}
+
+.score-team {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.score-team-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.score-team-logo {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
+
+.score-team-score {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent-primary);
+}
+
+.score-team.winner .score-team-score {
+    color: #10b981;
+}
+
+.score-status {
+    text-align: center;
+    font-size: 0.75rem;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.score-status.live {
+    background: #ea580c;
+    color: white;
+    animation: pulse 2s infinite;
+}
+
+.score-status.final {
+    background: #059669;
+    color: white;
+}
+
+.score-status.scheduled {
+    background: #64748b;
+    color: white;
+}
+
+/* Favorites System */
+.favorite-star-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    color: #cbd5e1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.favorite-star-btn:hover {
+    color: #fbbf24;
+    transform: scale(1.2);
+}
+
+.favorite-star-btn.active {
+    color: #fbbf24;
+}
+
+.favorite-team {
+    border: 2px solid #fbbf24 !important;
+    box-shadow: 0 0 15px rgba(251, 191, 36, 0.3) !important;
+}
+
+.favorite-game {
+    border: 2px solid #fbbf24 !important;
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.4) !important;
+    position: relative;
+}
+
+.favorite-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    z-index: 5;
+    box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
+}
+
 /* Lineup Styles */
 .lineup-list {
     max-height: 400px;
@@ -791,6 +991,17 @@ body.light-mode .win-probability-container {
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 2px;
+}
+
+.player-link {
+    color: var(--accent-primary);
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.player-link:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
 }
 
 .lineup-position {

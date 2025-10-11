@@ -264,6 +264,7 @@ async function loadBets() {
                     <td class="${profitColor}"><strong>${profitText}</strong></td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary" onclick="viewBetDetails(${bet.id})">View</button>
+                        <button class="btn btn-sm btn-outline-warning" onclick="editBet(${bet.id})">Edit</button>
                         <button class="btn btn-sm btn-outline-danger" onclick="deleteBet(${bet.id})">Delete</button>
                     </td>
                 </tr>
@@ -419,7 +420,6 @@ async function viewBetDetails(betId) {
                             <th>Line</th>
                             <th>Pick</th>
                             <th>Result</th>
-                            <th>Actual</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -436,10 +436,6 @@ async function viewBetDetails(betId) {
                                         <option value="hit" ${pick.result === 'hit' ? 'selected' : ''}>Hit ✓</option>
                                         <option value="miss" ${pick.result === 'miss' ? 'selected' : ''}>Miss ✗</option>
                                     </select>
-                                </td>
-                                <td>
-                                    <input type="number" class="form-control form-control-sm pick-actual" data-pick-id="${pick.id}"
-                                           value="${pick.actual_value || ''}" step="0.5" placeholder="-" ${bet.status !== 'pending' ? 'disabled' : ''}>
                                 </td>
                             </tr>
                         `).join('')}
@@ -462,17 +458,14 @@ async function updateBetResults() {
 
         const pickResults = [];
         const resultSelects = document.querySelectorAll('.pick-result');
-        const actualInputs = document.querySelectorAll('.pick-actual');
 
-        resultSelects.forEach((select, idx) => {
+        resultSelects.forEach((select) => {
             const pickId = parseInt(select.dataset.pickId);
             const result = select.value;
-            const actualValue = actualInputs[idx].value ? parseFloat(actualInputs[idx].value) : null;
 
             pickResults.push({
                 id: pickId,
-                result: result,
-                actual_value: actualValue
+                result: result
             });
         });
 
@@ -534,12 +527,217 @@ async function deleteBet(betId) {
     }
 }
 
+async function editBet(betId) {
+    try {
+        const response = await fetch('/api/bets');
+        const bets = await response.json();
+        const bet = bets.find(b => b.id === betId);
+
+        if (!bet) {
+            alert('Entry not found');
+            return;
+        }
+
+        // Reset form first
+        resetForm();
+
+        // Populate form with bet data
+        document.getElementById('platform').value = bet.platform;
+        updateEntryTypes(); // Load entry types for selected platform
+
+        // Use setTimeout to ensure entry types are loaded before setting value
+        setTimeout(() => {
+            document.getElementById('entry-type').value = bet.entry_type;
+            document.getElementById('stake').value = bet.stake;
+            document.getElementById('multiplier').value = bet.multiplier || '';
+            document.getElementById('game-date').value = bet.game_date || '';
+            document.getElementById('notes').value = bet.notes || '';
+
+            // Add picks
+            bet.picks.forEach(pick => {
+                pickCount++;
+                const container = document.getElementById('picks-container');
+                const pickRow = document.createElement('div');
+                pickRow.className = 'pick-row mb-3 p-3 border rounded';
+                pickRow.id = `pick-${pickCount}`;
+
+                pickRow.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label class="form-label">Player Name *</label>
+                            <input type="text" class="form-control pick-player" value="${pick.player_name}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Team</label>
+                            <input type="text" class="form-control pick-team" value="${pick.team_name || ''}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Stat Type *</label>
+                            <select class="form-select pick-stat" required>
+                                <option value="">Choose...</option>
+                                <option value="Pts" ${pick.stat_type === 'Pts' ? 'selected' : ''}>Points</option>
+                                <option value="Rebs" ${pick.stat_type === 'Rebs' ? 'selected' : ''}>Rebounds</option>
+                                <option value="Asts" ${pick.stat_type === 'Asts' ? 'selected' : ''}>Assists</option>
+                                <option value="Hits" ${pick.stat_type === 'Hits' ? 'selected' : ''}>Hits</option>
+                                <option value="HR" ${pick.stat_type === 'HR' ? 'selected' : ''}>Home Runs</option>
+                                <option value="RBI" ${pick.stat_type === 'RBI' ? 'selected' : ''}>RBIs</option>
+                                <option value="K" ${pick.stat_type === 'K' ? 'selected' : ''}>Strikeouts (P)</option>
+                                <option value="TB" ${pick.stat_type === 'TB' ? 'selected' : ''}>Total Bases</option>
+                                <option value="H+R+RBI" ${pick.stat_type === 'H+R+RBI' ? 'selected' : ''}>H+R+RBI</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Line *</label>
+                            <input type="number" class="form-control pick-line" value="${pick.line}" step="0.5" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Pick *</label>
+                            <select class="form-select pick-direction" required>
+                                <option value="">Choose...</option>
+                                <option value="higher" ${pick.pick === 'higher' ? 'selected' : ''}>Higher</option>
+                                <option value="lower" ${pick.pick === 'lower' ? 'selected' : ''}>Lower</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1 d-flex align-items-end">
+                            <button type="button" class="btn btn-danger btn-sm w-100" onclick="removePickRow(${pickCount})">✕</button>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(pickRow);
+            });
+
+            updatePickCount();
+            updatePayoutPreview();
+
+            // Store bet ID for updating
+            currentBetId = betId;
+
+            // Change modal title and button
+            document.getElementById('addBetModalLabel').textContent = 'Edit Parlay Entry';
+            document.querySelector('#addBetModal .modal-footer .btn-primary').textContent = 'Update Entry';
+            document.querySelector('#addBetModal .modal-footer .btn-primary').setAttribute('onclick', 'updateExistingBet()');
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('addBetModal'));
+            modal.show();
+        }, 100);
+
+    } catch (error) {
+        console.error('Error editing bet:', error);
+        alert('Error loading entry for editing');
+    }
+}
+
+async function updateExistingBet() {
+    try {
+        const platform = document.getElementById('platform').value;
+        const entryType = document.getElementById('entry-type').value;
+        const stake = parseFloat(document.getElementById('stake').value);
+        const multiplier = parseFloat(document.getElementById('multiplier').value);
+        const gameDate = document.getElementById('game-date').value;
+        const notes = document.getElementById('notes').value;
+
+        // Validate multiplier
+        if (!multiplier || multiplier <= 0) {
+            alert('Please enter a valid multiplier');
+            return;
+        }
+
+        // Collect all picks
+        const pickRows = document.querySelectorAll('.pick-row');
+        const picks = [];
+
+        for (const row of pickRows) {
+            const player = row.querySelector('.pick-player').value.trim();
+            const team = row.querySelector('.pick-team').value.trim();
+            const statType = row.querySelector('.pick-stat').value;
+            const line = parseFloat(row.querySelector('.pick-line').value);
+            const pick = row.querySelector('.pick-direction').value;
+
+            if (!player || !statType || !line || !pick) {
+                alert('Please fill in all required fields for each pick');
+                return;
+            }
+
+            picks.push({
+                player_name: player,
+                team_name: team || null,
+                stat_type: statType,
+                line: line,
+                pick: pick
+            });
+        }
+
+        if (picks.length < 2) {
+            alert('Minimum 2 picks required for a parlay entry');
+            return;
+        }
+
+        const betData = {
+            platform: platform,
+            entry_type: entryType,
+            stake: stake,
+            multiplier: multiplier,
+            game_date: gameDate || null,
+            notes: notes || null,
+            picks: picks
+        };
+
+        // Delete old bet and create new one
+        await fetch(`/api/bets/${currentBetId}`, {
+            method: 'DELETE'
+        });
+
+        const response = await fetch('/api/bets', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(betData)
+        });
+
+        if (response.ok) {
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addBetModal'));
+            modal.hide();
+
+            // Reset modal title and button
+            document.getElementById('addBetModalLabel').textContent = 'Add New Parlay Entry';
+            document.querySelector('#addBetModal .modal-footer .btn-primary').textContent = 'Save Parlay Entry';
+            document.querySelector('#addBetModal .modal-footer .btn-primary').setAttribute('onclick', 'saveBet()');
+
+            // Clear currentBetId
+            currentBetId = null;
+
+            // Reload data
+            loadStats();
+            loadBets();
+
+            alert('Parlay entry updated successfully!');
+        } else {
+            const error = await response.json();
+            alert('Error updating entry: ' + error.message);
+        }
+
+    } catch (error) {
+        console.error('Error updating bet:', error);
+        alert('Error updating entry. Please try again.');
+    }
+}
+
 function resetForm() {
     document.getElementById('add-bet-form').reset();
     document.getElementById('picks-container').innerHTML = '';
     pickCount = 0;
     updatePickCount();
     document.getElementById('payout-preview').style.display = 'none';
+
+    // Reset modal title and button in case it was changed by edit
+    document.getElementById('addBetModalLabel').textContent = 'Add New Parlay Entry';
+    document.querySelector('#addBetModal .modal-footer .btn-primary').textContent = 'Save Parlay Entry';
+    document.querySelector('#addBetModal .modal-footer .btn-primary').setAttribute('onclick', 'saveBet()');
+    currentBetId = null;
 }
 
 async function exportToCSV() {

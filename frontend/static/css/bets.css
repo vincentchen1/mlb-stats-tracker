@@ -202,6 +202,61 @@ body.light-mode .form-select:focus {
     color: #dc3545 !important;
 }
 
+/* Analytics Cards */
+.analytics-card {
+    background: var(--card-bg-1);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.analytics-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    border-color: #2563eb;
+}
+
+.analytics-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.analytics-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.analytics-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent-primary);
+}
+
+.analytics-subtext {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.analytics-roi {
+    font-size: 0.85rem;
+    padding: 5px 10px;
+    background: rgba(37, 99, 235, 0.1);
+    border-radius: 6px;
+    display: inline-block;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
 @media (max-width: 768px) {
     .stat-card {
         margin-bottom: 15px;
