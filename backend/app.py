@@ -1022,6 +1022,8 @@ def get_bets():
         status_filter = request.args.get('status')
         platform_filter = request.args.get('platform')
         entry_type_filter = request.args.get('entry_type')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
 
         query = Bet.query
 
@@ -1031,6 +1033,12 @@ def get_bets():
             query = query.filter_by(platform=platform_filter)
         if entry_type_filter:
             query = query.filter_by(entry_type=entry_type_filter)
+        if start_date:
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(Bet.date >= start_datetime)
+        if end_date:
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+            query = query.filter(Bet.date < end_datetime)
 
         bets = query.order_by(Bet.date.desc()).all()
 

@@ -11,11 +11,14 @@ const UNDERDOG_FLEX = {3: 6, 4: 6, 5: 20};
 document.addEventListener('DOMContentLoaded', function() {
     loadStats();
     loadBets();
+    loadPlayerAnalytics();
 
     // Filter change listeners
     document.getElementById('status-filter').addEventListener('change', loadBets);
     document.getElementById('platform-filter').addEventListener('change', loadBets);
     document.getElementById('type-filter').addEventListener('change', loadBets);
+    document.getElementById('start-date-filter').addEventListener('change', loadBets);
+    document.getElementById('end-date-filter').addEventListener('change', loadBets);
 
     // Platform change listener
     document.getElementById('platform').addEventListener('change', updateEntryTypes);
@@ -217,11 +220,15 @@ async function loadBets() {
         const statusFilter = document.getElementById('status-filter').value;
         const platformFilter = document.getElementById('platform-filter').value;
         const typeFilter = document.getElementById('type-filter').value;
+        const startDate = document.getElementById('start-date-filter').value;
+        const endDate = document.getElementById('end-date-filter').value;
 
         let url = '/api/bets?';
         if (statusFilter) url += `status=${statusFilter}&`;
         if (platformFilter) url += `platform=${platformFilter}&`;
         if (typeFilter) url += `entry_type=${typeFilter}&`;
+        if (startDate) url += `start_date=${startDate}&`;
+        if (endDate) url += `end_date=${endDate}&`;
 
         const response = await fetch(url);
         const bets = await response.json();
@@ -808,5 +815,127 @@ async function exportToCSV() {
     } catch (error) {
         console.error('Error exporting CSV:', error);
         alert('Error exporting data. Please try again.');
+    }
+}
+
+async function loadPlayerAnalytics() {
+    try {
+        const response = await fetch('/api/bets');
+        const bets = await response.json();
+
+        // Analyze player performance
+        const playerStats = {};
+        const statTypeStats = {};
+
+        bets.forEach(bet => {
+            if (bet.picks) {
+                bet.picks.forEach(pick => {
+                    // Track player performance
+                    if (!playerStats[pick.player_name]) {
+                        playerStats[pick.player_name] = { hits: 0, total: 0, hitRate: 0 };
+                    }
+                    playerStats[pick.player_name].total++;
+                    if (pick.result === 'hit') {
+                        playerStats[pick.player_name].hits++;
+                    }
+
+                    // Track stat type performance
+                    if (!statTypeStats[pick.stat_type]) {
+                        statTypeStats[pick.stat_type] = { hits: 0, total: 0, hitRate: 0 };
+                    }
+                    statTypeStats[pick.stat_type].total++;
+                    if (pick.result === 'hit') {
+                        statTypeStats[pick.stat_type].hits++;
+                    }
+                });
+            }
+        });
+
+        // Calculate hit rates
+        Object.keys(playerStats).forEach(player => {
+            playerStats[player].hitRate = (playerStats[player].hits / playerStats[player].total * 100).toFixed(1);
+        });
+        Object.keys(statTypeStats).forEach(stat => {
+            statTypeStats[stat].hitRate = (statTypeStats[stat].hits / statTypeStats[stat].total * 100).toFixed(1);
+        });
+
+        // Sort and display top players (min 2 picks)
+        const topPlayers = Object.entries(playerStats)
+            .filter(([_, stats]) => stats.total >= 2)
+            .sort((a, b) => b[1].hitRate - a[1].hitRate)
+            .slice(0, 5);
+
+        const topPlayersHtml = topPlayers.length > 0
+            ? topPlayers.map(([player, stats]) =>
+                `<div class="d-flex justify-content-between mb-1">
+                    <span>${player}</span>
+                    <span class="badge bg-success">${stats.hits}/${stats.total} (${stats.hitRate}%)</span>
+                </div>`
+              ).join('')
+            : '<div class="text-muted">No data yet</div>';
+
+        document.getElementById('top-players').innerHTML = topPlayersHtml;
+
+        // Sort and display best stat types
+        const bestStats = Object.entries(statTypeStats)
+            .sort((a, b) => b[1].hitRate - a[1].hitRate)
+            .slice(0, 5);
+
+        const bestStatsHtml = bestStats.length > 0
+            ? bestStats.map(([stat, stats]) =>
+                `<div class="d-flex justify-content-between mb-1">
+                    <span>${stat}</span>
+                    <span class="badge bg-info">${stats.hits}/${stats.total} (${stats.hitRate}%)</span>
+                </div>`
+              ).join('')
+            : '<div class="text-muted">No data yet</div>';
+
+        document.getElementById('best-stats').innerHTML = bestStatsHtml;
+
+        // Calculate streaks
+        const completedBets = bets
+            .filter(bet => bet.status === 'won' || bet.status === 'lost')
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        let currentStreak = 0;
+        let longestWinStreak = 0;
+        let tempWinStreak = 0;
+
+        for (const bet of completedBets) {
+            if (bet.status === 'won') {
+                if (currentStreak >= 0) {
+                    currentStreak++;
+                } else {
+                    currentStreak = 1;
+                }
+                tempWinStreak++;
+                longestWinStreak = Math.max(longestWinStreak, tempWinStreak);
+            } else {
+                tempWinStreak = 0;
+                if (currentStreak <= 0) {
+                    currentStreak--;
+                } else {
+                    currentStreak = -1;
+                }
+            }
+        }
+
+        const streakHtml = `
+            <div class="mb-2">
+                <strong>Current:</strong>
+                <span class="badge ${currentStreak > 0 ? 'bg-success' : currentStreak < 0 ? 'bg-danger' : 'bg-secondary'}">
+                    ${currentStreak > 0 ? `${currentStreak}W` : currentStreak < 0 ? `${Math.abs(currentStreak)}L` : 'None'}
+                </span>
+            </div>
+            <div>
+                <strong>Best Win Streak:</strong>
+                <span class="badge bg-primary">${longestWinStreak}W</span>
+            </div>
+        `;
+
+        document.getElementById('streak-info').innerHTML = streakHtml;
+
+    } catch (error) {
+        console.error('Error loading player analytics:', error);
     }
 }

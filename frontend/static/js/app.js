@@ -264,6 +264,20 @@ async function loadGamesForDate(date) {
         // Update score summary
         updateScoreSummary(games);
 
+        // Update live games badge
+        const liveGames = games.filter(game => game.status === 'live');
+        const liveBadge = document.getElementById('live-games-badge');
+        if (liveBadge) {
+            if (liveGames.length > 0) {
+                liveBadge.textContent = liveGames.length;
+                liveBadge.style.display = 'inline-block';
+                liveBadge.classList.add('pulse');
+            } else {
+                liveBadge.style.display = 'none';
+                liveBadge.classList.remove('pulse');
+            }
+        }
+
         const container = document.getElementById('games-container');
 
         if (games.length === 0) {
