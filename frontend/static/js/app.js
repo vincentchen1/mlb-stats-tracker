@@ -1,5 +1,13 @@
 let currentDate = new Date();
 
+// Cache for API responses
+const apiCache = {
+    teams: null,
+    teamsTimestamp: 0,
+    games: {},
+    cacheDuration: 60000 // 1 minute for teams, games cache per date
+};
+
 // MLB Team color mapping (based on ESPN/official team colors)
 const teamColors = {
     'Los Angeles Dodgers': '#005A9C',
@@ -274,9 +282,34 @@ async function loadGamesForDate(date) {
         const day = String(date.getDate()).padStart(2, '0');
         const dateStr = `${year}-${month}-${day}`;
 
+        // Check cache first (games refresh every 15 seconds via interval, but avoid duplicate fetches)
+        const now = Date.now();
+        if (apiCache.games[dateStr] && (now - apiCache.games[dateStr].timestamp) < 10000) {
+            renderGames(apiCache.games[dateStr].data, date);
+            return;
+        }
+
         const response = await fetch(`/api/games/${dateStr}`);
         const games = await response.json();
 
+        // Cache the results
+        apiCache.games[dateStr] = { data: games, timestamp: now };
+
+        renderGames(games, date);
+    } catch (error) {
+        console.error('Error loading games:', error);
+        document.getElementById('games-container').innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-danger">
+                    Error loading games. Please try again later.
+                </div>
+            </div>
+        `;
+    }
+}
+
+function renderGames(games, date) {
+    try {
         // Update score summary
         updateScoreSummary(games);
 
@@ -308,6 +341,7 @@ async function loadGamesForDate(date) {
             return;
         }
 
+        // Batch DOM update with innerHTML (more efficient than creating elements individually)
         container.innerHTML = games.map(game => {
             // Convert game time to local timezone
             let gameTime = '';
@@ -524,9 +558,28 @@ async function loadGamesForDate(date) {
 
 async function loadTeams() {
     try {
+        // Check cache first
+        const now = Date.now();
+        if (apiCache.teams && (now - apiCache.teamsTimestamp) < apiCache.cacheDuration) {
+            renderTeams(apiCache.teams);
+            return;
+        }
+
         const response = await fetch('/api/teams');
         const teams = await response.json();
 
+        // Cache the teams data
+        apiCache.teams = teams;
+        apiCache.teamsTimestamp = now;
+
+        renderTeams(teams);
+    } catch (error) {
+        console.error('Error loading teams:', error);
+    }
+}
+
+function renderTeams(teams) {
+    try {
         // Organize teams by division
         const divisions = [
             'AL East', 'AL Central', 'AL West',

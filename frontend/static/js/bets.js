@@ -2,23 +2,48 @@ let pickCount = 0;
 let currentBetId = null;
 let currentBetData = null;
 
+// Cache for API responses
+const cache = {
+    bets: null,
+    betsTimestamp: 0,
+    stats: null,
+    statsTimestamp: 0,
+    cacheDuration: 30000 // 30 seconds
+};
+
 // Payout multipliers
 const PRIZEPICKS_POWER = {2: 3, 3: 6, 4: 12, 5: 20, 6: 37.5};
 const PRIZEPICKS_FLEX = {3: 3, 4: 6, 5: 10, 6: 25};
 const UNDERDOG_STANDARD = {2: 3, 3: 6, 4: 10, 5: 20};
 const UNDERDOG_FLEX = {3: 6, 4: 6, 5: 20};
 
+// Debounce function for filter changes
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Debounced filter function
+const debouncedLoadBets = debounce(loadBets, 300);
+
 document.addEventListener('DOMContentLoaded', function() {
     loadStats();
     loadBets();
     loadPlayerAnalytics();
 
-    // Filter change listeners
+    // Filter change listeners with debouncing
     document.getElementById('status-filter').addEventListener('change', loadBets);
     document.getElementById('platform-filter').addEventListener('change', loadBets);
     document.getElementById('type-filter').addEventListener('change', loadBets);
-    document.getElementById('start-date-filter').addEventListener('change', loadBets);
-    document.getElementById('end-date-filter').addEventListener('change', loadBets);
+    document.getElementById('start-date-filter').addEventListener('change', debouncedLoadBets);
+    document.getElementById('end-date-filter').addEventListener('change', debouncedLoadBets);
 
     // Platform change listener
     document.getElementById('platform').addEventListener('change', updateEntryTypes);
@@ -230,9 +255,31 @@ async function loadBets() {
         if (startDate) url += `start_date=${startDate}&`;
         if (endDate) url += `end_date=${endDate}&`;
 
+        // Check cache for unfiltered requests
+        const now = Date.now();
+        const isUnfiltered = !statusFilter && !platformFilter && !typeFilter && !startDate && !endDate;
+        if (isUnfiltered && cache.bets && (now - cache.betsTimestamp) < cache.cacheDuration) {
+            renderBets(cache.bets);
+            return;
+        }
+
         const response = await fetch(url);
         const bets = await response.json();
 
+        // Cache unfiltered results
+        if (isUnfiltered) {
+            cache.bets = bets;
+            cache.betsTimestamp = now;
+        }
+
+        renderBets(bets);
+    } catch (error) {
+        console.error('Error loading bets:', error);
+    }
+}
+
+function renderBets(bets) {
+    try {
         const tbody = document.getElementById('bets-tbody');
 
         if (bets.length === 0) {
@@ -246,7 +293,10 @@ async function loadBets() {
             return;
         }
 
-        tbody.innerHTML = bets.map(bet => {
+        // Use DocumentFragment for efficient DOM updates
+        const fragment = document.createDocumentFragment();
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = '<table><tbody>' + bets.map(bet => {
             const statusBadge = getStatusBadge(bet.status);
             const profitColor = bet.profit >= 0 ? 'text-success' : 'text-danger';
             const profitText = bet.profit !== 0 ? `$${bet.profit.toFixed(2)}` : '-';
@@ -276,10 +326,15 @@ async function loadBets() {
                     </td>
                 </tr>
             `;
-        }).join('');
+        }).join('') + '</tbody></table>';
 
+        // Extract tbody content and append efficiently
+        tbody.innerHTML = '';
+        while (tempDiv.firstChild.firstChild.firstChild) {
+            tbody.appendChild(tempDiv.firstChild.firstChild.firstChild);
+        }
     } catch (error) {
-        console.error('Error loading bets:', error);
+        console.error('Error rendering bets:', error);
     }
 }
 
@@ -820,8 +875,17 @@ async function exportToCSV() {
 
 async function loadPlayerAnalytics() {
     try {
-        const response = await fetch('/api/bets');
-        const bets = await response.json();
+        // Use cached bets if available
+        let bets;
+        const now = Date.now();
+        if (cache.bets && (now - cache.betsTimestamp) < cache.cacheDuration) {
+            bets = cache.bets;
+        } else {
+            const response = await fetch('/api/bets');
+            bets = await response.json();
+            cache.bets = bets;
+            cache.betsTimestamp = now;
+        }
 
         // Analyze player performance
         const playerStats = {};

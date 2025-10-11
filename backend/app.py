@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 import requests
 import os
 import json
+from functools import lru_cache
+import time
 
 app = Flask(__name__, template_folder='../frontend/templates', static_folder='../frontend/static')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///baseball_stats.db'
@@ -15,6 +17,14 @@ CORS(app)
 
 # MLB Stats API Base URL
 MLB_API_BASE = 'https://statsapi.mlb.com/api/v1'
+
+# Backend cache for API responses
+api_cache = {
+    'teams': {'data': None, 'timestamp': 0},
+    'games': {},
+    'standings': {'data': None, 'timestamp': 0}
+}
+CACHE_DURATION = 60  # 60 seconds for most data
 
 # Team logo URL generator
 def get_team_logo_url(team_id):
@@ -249,20 +259,38 @@ def get_live_teams():
             118: {'status': 'ELIM_AL_WC', 'round': 'AL Wild Card', 'description': 'Lost AL Wild Card'},  # Royals
         }
 
-        # Fetch teams data
-        url = f'{MLB_API_BASE}/teams?sportId=1'
-        response = requests.get(url, timeout=10)
+        # Check cache for teams data
+        now = time.time()
+        if api_cache['teams']['data'] and (now - api_cache['teams']['timestamp']) < CACHE_DURATION:
+            data = api_cache['teams']['data']
+        else:
+            # Fetch teams data
+            url = f'{MLB_API_BASE}/teams?sportId=1'
+            response = requests.get(url, timeout=10)
 
-        if response.status_code != 200:
-            return get_fallback_teams()
+            if response.status_code != 200:
+                return get_fallback_teams()
 
-        # Fetch standings data
-        standings_response = requests.get(f'{MLB_API_BASE}/standings?leagueId=103,104&season={current_year}', timeout=10)
+            data = response.json()
+            api_cache['teams']['data'] = data
+            api_cache['teams']['timestamp'] = now
+
+        # Check cache for standings data
+        if api_cache['standings']['data'] and (now - api_cache['standings']['timestamp']) < CACHE_DURATION:
+            standings_json = api_cache['standings']['data']
+        else:
+            # Fetch standings data
+            standings_response = requests.get(f'{MLB_API_BASE}/standings?leagueId=103,104&season={current_year}', timeout=10)
+            if standings_response.status_code == 200:
+                standings_json = standings_response.json()
+                api_cache['standings']['data'] = standings_json
+                api_cache['standings']['timestamp'] = now
+            else:
+                standings_json = {}
+
         standings_data = {}
 
-        if standings_response.status_code == 200:
-            standings_json = standings_response.json()
-
+        if standings_json:
             # First pass: collect all teams with playoff spots
             playoff_teams = set()
             for record in standings_json.get('records', []):
@@ -462,6 +490,13 @@ def get_live_games(date_str=None):
         if date_str is None:
             date_str = datetime.now().strftime('%Y-%m-%d')
 
+        # Check cache for games data (shorter cache for live games - 15 seconds)
+        now = time.time()
+        if date_str in api_cache['games']:
+            cache_entry = api_cache['games'][date_str]
+            if (now - cache_entry['timestamp']) < 15:  # 15 second cache for games
+                return jsonify(cache_entry['data'])
+
         url = f'{MLB_API_BASE}/schedule?sportId=1&date={date_str}&hydrate=venue,linescore,probablePitcher,seriesStatus,decisions,weather'
         response = requests.get(url, timeout=10)
 
@@ -636,7 +671,11 @@ def get_live_games(date_str=None):
                     }
                     games.append(game_info)
 
-        return jsonify(games if games else get_fallback_games_data())
+        # Cache the results
+        result_data = games if games else get_fallback_games_data()
+        api_cache['games'][date_str] = {'data': result_data, 'timestamp': time.time()}
+
+        return jsonify(result_data)
 
     except Exception as e:
         print(f"Error fetching live games: {e}")
@@ -1025,7 +1064,8 @@ def get_bets():
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
 
-        query = Bet.query
+        # Use eager loading to reduce database queries
+        query = Bet.query.options(db.joinedload(Bet.picks))
 
         if status_filter:
             query = query.filter_by(status=status_filter)
