@@ -1142,7 +1142,9 @@ def update_bet(bet_id):
                         if 'result' in pick_data:
                             pick.result = pick_data['result']
                         if 'actual_value' in pick_data:
-                            pick.actual_value = float(pick_data['actual_value'])
+                            actual_val = pick_data['actual_value']
+                            # Handle empty strings and None values
+                            pick.actual_value = float(actual_val) if actual_val not in [None, ''] else None
 
         # Calculate hits (number of correct picks)
         bet.hits = sum(1 for pick in bet.picks if pick.result == 'hit')
@@ -1150,7 +1152,16 @@ def update_bet(bet_id):
         # Calculate payout based on user-defined multiplier if provided, otherwise use automatic calculation
         if bet.multiplier is not None and bet.multiplier > 0:
             # User-defined multiplier: payout = stake * multiplier
-            bet.payout = bet.stake * bet.multiplier
+            # BUT: Power/Standard plays require ALL picks to hit (all-or-nothing)
+            if bet.entry_type in ['Power', 'Standard']:
+                # All-or-nothing: must hit ALL picks to get payout
+                if bet.hits == bet.num_picks:
+                    bet.payout = bet.stake * bet.multiplier
+                else:
+                    bet.payout = 0.0
+            else:
+                # Flex plays: apply multiplier even with partial hits
+                bet.payout = bet.stake * bet.multiplier
         else:
             # Auto-calculate payout based on platform and entry type
             if bet.platform == 'PrizePicks':
