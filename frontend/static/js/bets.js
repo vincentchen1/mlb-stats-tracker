@@ -421,9 +421,15 @@ async function saveBet() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('addBetModal'));
             modal.hide();
 
-            // Reload data
+            // Reload data and refresh charts
             loadStats();
             loadBets();
+            loadPlayerAnalytics();
+
+            // Refresh charts if the function exists
+            if (typeof refreshChartsAndAnalytics === 'function') {
+                refreshChartsAndAnalytics();
+            }
 
             alert('Parlay entry added successfully!');
         } else {
@@ -550,9 +556,15 @@ async function updateBetResults() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('viewBetModal'));
             modal.hide();
 
-            // Reload data
+            // Reload data and refresh charts
             loadStats();
             loadBets();
+            loadPlayerAnalytics();
+
+            // Refresh charts if the function exists
+            if (typeof refreshChartsAndAnalytics === 'function') {
+                refreshChartsAndAnalytics();
+            }
 
             alert(`Entry updated! Status: ${result.status}, Hits: ${result.hits}/${currentBetData.num_picks}, Payout: $${result.payout.toFixed(2)}, Profit: $${result.profit.toFixed(2)}`);
         } else {
@@ -576,8 +588,16 @@ async function deleteBet(betId) {
         });
 
         if (response.ok) {
+            // Reload data and refresh charts
             loadStats();
             loadBets();
+            loadPlayerAnalytics();
+
+            // Refresh charts if the function exists
+            if (typeof refreshChartsAndAnalytics === 'function') {
+                refreshChartsAndAnalytics();
+            }
+
             alert('Entry deleted successfully');
         } else {
             alert('Error deleting entry');
@@ -772,9 +792,15 @@ async function updateExistingBet() {
             // Clear currentBetId
             currentBetId = null;
 
-            // Reload data
+            // Reload data and refresh charts
             loadStats();
             loadBets();
+            loadPlayerAnalytics();
+
+            // Refresh charts if the function exists
+            if (typeof refreshChartsAndAnalytics === 'function') {
+                refreshChartsAndAnalytics();
+            }
 
             alert('Parlay entry updated successfully!');
         } else {

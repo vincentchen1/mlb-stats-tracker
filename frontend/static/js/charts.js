@@ -488,6 +488,11 @@ async function filterByMonth() {
     }
 }
 
+// Function to refresh all charts and analytics
+function refreshChartsAndAnalytics() {
+    initializeCharts();
+}
+
 // Initialize charts when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     // Wait a bit for bets to load first
