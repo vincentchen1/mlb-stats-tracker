@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Entry type and pick changes for payout preview
     document.getElementById('entry-type').addEventListener('change', updatePayoutPreview);
     document.getElementById('stake').addEventListener('input', updatePayoutPreview);
+    document.getElementById('multiplier').addEventListener('input', updatePayoutPreview);
 
     // Reset modal when closed
     document.getElementById('addBetModal').addEventListener('hidden.bs.modal', resetForm);
@@ -117,46 +118,21 @@ function updatePickCount() {
 }
 
 function updatePayoutPreview() {
-    const platform = document.getElementById('platform').value;
-    const entryType = document.getElementById('entry-type').value;
     const stake = parseFloat(document.getElementById('stake').value) || 0;
-    const numPicks = document.querySelectorAll('.pick-row').length;
+    const multiplier = parseFloat(document.getElementById('multiplier').value) || 0;
 
-    if (!platform || !entryType || stake <= 0 || numPicks < 2) {
+    if (stake <= 0 || multiplier <= 0) {
         document.getElementById('payout-preview').style.display = 'none';
         return;
     }
 
-    let multiplier = 0;
-    let payoutText = '';
+    const totalPayout = stake * multiplier;
+    const profit = totalPayout - stake;
 
-    if (platform === 'PrizePicks') {
-        if (entryType === 'Power') {
-            multiplier = PRIZEPICKS_POWER[numPicks] || 0;
-            payoutText = `${numPicks}-Pick Power Play: Win all ${numPicks} = ${multiplier}x ($${(stake * multiplier).toFixed(2)})`;
-        } else if (entryType === 'Flex') {
-            const allMultiplier = PRIZEPICKS_FLEX[numPicks] || 0;
-            payoutText = `${numPicks}-Pick Flex Play: ${numPicks}/${numPicks} = ${allMultiplier}x ($${(stake * allMultiplier).toFixed(2)})`;
-
-            if (numPicks === 4) payoutText += `, 3/4 = 0.4x ($${(stake * 0.4).toFixed(2)})`;
-            if (numPicks === 5) payoutText += `, 4/5 = 1.5x ($${(stake * 1.5).toFixed(2)})`;
-            if (numPicks === 6) payoutText += `, 5/6 = 2x ($${(stake * 2).toFixed(2)})`;
-        }
-    } else if (platform === 'Underdog') {
-        if (entryType === 'Standard') {
-            multiplier = UNDERDOG_STANDARD[numPicks] || 0;
-            payoutText = `${numPicks}-Pick Standard: Win all ${numPicks} = ${multiplier}x ($${(stake * multiplier).toFixed(2)})`;
-        } else if (entryType === 'Flex') {
-            const allMultiplier = UNDERDOG_FLEX[numPicks] || 0;
-            payoutText = `${numPicks}-Pick Flex: ${numPicks}/${numPicks} = ${allMultiplier}x ($${(stake * allMultiplier).toFixed(2)})`;
-
-            if (numPicks === 4) payoutText += `, 3/4 = 1.5x ($${(stake * 1.5).toFixed(2)})`;
-            if (numPicks === 5) payoutText += `, 4/5 = 3x ($${(stake * 3).toFixed(2)})`;
-        }
-    }
+    const payoutText = `${multiplier}x Multiplier: Stake $${stake.toFixed(2)} × ${multiplier} = Total Payout: $${totalPayout.toFixed(2)} (Profit: $${profit.toFixed(2)})`;
 
     document.getElementById('payout-text').textContent = payoutText;
-    document.getElementById('payout-preview').style.display = payoutText ? 'block' : 'none';
+    document.getElementById('payout-preview').style.display = 'block';
 }
 
 async function loadStats() {
@@ -173,8 +149,66 @@ async function loadStats() {
         document.getElementById('win-rate').textContent = `${stats.win_rate.toFixed(1)}%`;
         document.getElementById('total-bets').textContent = stats.total_bets;
 
+        // Load analytics by type
+        await loadAnalyticsByType();
+
     } catch (error) {
         console.error('Error loading stats:', error);
+    }
+}
+
+async function loadAnalyticsByType() {
+    try {
+        const response = await fetch('/api/bets');
+        const bets = await response.json();
+
+        const typeStats = {
+            'Power': { wins: 0, total: 0, profit: 0, stake: 0 },
+            'Flex': { wins: 0, total: 0, profit: 0, stake: 0 },
+            'Standard': { wins: 0, total: 0, profit: 0, stake: 0 }
+        };
+
+        bets.forEach(bet => {
+            if (bet.status === 'won' || bet.status === 'lost') {
+                // Merge Power and Standard together
+                const type = (bet.entry_type === 'Power') ? 'Standard' : bet.entry_type;
+                if (typeStats[type]) {
+                    typeStats[type].total++;
+                    typeStats[type].stake += bet.stake;
+                    typeStats[type].profit += bet.profit || 0;
+                    if (bet.status === 'won') {
+                        typeStats[type].wins++;
+                    }
+                }
+            }
+        });
+
+        // Update Flex Play
+        const flexWinRate = typeStats['Flex'].total > 0
+            ? (typeStats['Flex'].wins / typeStats['Flex'].total * 100).toFixed(1)
+            : '0.0';
+        const flexROI = typeStats['Flex'].stake > 0
+            ? (typeStats['Flex'].profit / typeStats['Flex'].stake * 100).toFixed(1)
+            : '0.0';
+        document.getElementById('flex-win-rate').textContent = `${flexWinRate}%`;
+        document.getElementById('flex-record').textContent = `${typeStats['Flex'].wins}-${typeStats['Flex'].total - typeStats['Flex'].wins}`;
+        document.getElementById('flex-roi').textContent = `ROI: ${flexROI}%`;
+        document.getElementById('flex-roi').style.color = typeStats['Flex'].profit >= 0 ? '#28a745' : '#dc3545';
+
+        // Update Standard
+        const standardWinRate = typeStats['Standard'].total > 0
+            ? (typeStats['Standard'].wins / typeStats['Standard'].total * 100).toFixed(1)
+            : '0.0';
+        const standardROI = typeStats['Standard'].stake > 0
+            ? (typeStats['Standard'].profit / typeStats['Standard'].stake * 100).toFixed(1)
+            : '0.0';
+        document.getElementById('standard-win-rate').textContent = `${standardWinRate}%`;
+        document.getElementById('standard-record').textContent = `${typeStats['Standard'].wins}-${typeStats['Standard'].total - typeStats['Standard'].wins}`;
+        document.getElementById('standard-roi').textContent = `ROI: ${standardROI}%`;
+        document.getElementById('standard-roi').style.color = typeStats['Standard'].profit >= 0 ? '#28a745' : '#dc3545';
+
+    } catch (error) {
+        console.error('Error loading analytics:', error);
     }
 }
 
@@ -261,8 +295,15 @@ async function saveBet() {
         const platform = document.getElementById('platform').value;
         const entryType = document.getElementById('entry-type').value;
         const stake = parseFloat(document.getElementById('stake').value);
+        const multiplier = parseFloat(document.getElementById('multiplier').value);
         const gameDate = document.getElementById('game-date').value;
         const notes = document.getElementById('notes').value;
+
+        // Validate multiplier
+        if (!multiplier || multiplier <= 0) {
+            alert('Please enter a valid multiplier');
+            return;
+        }
 
         // Collect all picks
         const pickRows = document.querySelectorAll('.pick-row');
@@ -298,6 +339,7 @@ async function saveBet() {
             platform: platform,
             entry_type: entryType,
             stake: stake,
+            multiplier: multiplier,
             game_date: gameDate || null,
             notes: notes || null,
             picks: picks
@@ -354,6 +396,7 @@ async function viewBetDetails(betId) {
                     <p><strong>Platform:</strong> ${bet.platform}</p>
                     <p><strong>Entry Type:</strong> ${bet.entry_type}</p>
                     <p><strong>Stake:</strong> $${bet.stake.toFixed(2)}</p>
+                    ${bet.multiplier ? `<p><strong>Multiplier:</strong> ${bet.multiplier}x</p>` : ''}
                 </div>
                 <div class="col-md-6">
                     <p><strong>Status:</strong> ${bet.status}</p>
@@ -497,4 +540,75 @@ function resetForm() {
     pickCount = 0;
     updatePickCount();
     document.getElementById('payout-preview').style.display = 'none';
+}
+
+async function exportToCSV() {
+    try {
+        const response = await fetch('/api/bets');
+        const bets = await response.json();
+
+        if (bets.length === 0) {
+            alert('No bets to export!');
+            return;
+        }
+
+        // CSV Headers
+        const headers = ['Date', 'Platform', 'Entry Type', 'Picks', 'Stake', 'Status', 'Payout', 'Profit', 'Notes'];
+
+        // Convert bets to CSV rows
+        const rows = bets.map(bet => {
+            const date = new Date(bet.created_at).toLocaleDateString();
+            const picks = bet.picks ? bet.picks.map(p =>
+                `${p.player} (${p.stat} ${p.direction} ${p.line})`
+            ).join('; ') : '';
+            const profit = bet.profit ? bet.profit.toFixed(2) : '0.00';
+            const payout = bet.payout ? bet.payout.toFixed(2) : '0.00';
+
+            return [
+                date,
+                bet.platform,
+                bet.entry_type,
+                picks,
+                bet.stake.toFixed(2),
+                bet.status,
+                payout,
+                profit,
+                bet.notes || ''
+            ];
+        });
+
+        // Combine headers and rows
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+
+        // Create download link
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+
+        link.setAttribute('href', url);
+        link.setAttribute('download', `betting-history-${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Show success message
+        const successMsg = document.createElement('div');
+        successMsg.className = 'alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3';
+        successMsg.style.zIndex = '9999';
+        successMsg.innerHTML = '✅ Betting history exported successfully!';
+        document.body.appendChild(successMsg);
+
+        setTimeout(() => {
+            successMsg.remove();
+        }, 3000);
+
+    } catch (error) {
+        console.error('Error exporting CSV:', error);
+        alert('Error exporting data. Please try again.');
+    }
 }

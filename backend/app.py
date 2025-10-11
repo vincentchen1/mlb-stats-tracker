@@ -66,6 +66,7 @@ class Bet(db.Model):
     entry_type = db.Column(db.String(50), nullable=False)  # 'Power', 'Flex' for PrizePicks, 'Standard', 'Flex' for Underdog
     num_picks = db.Column(db.Integer, nullable=False)  # 2-6 picks
     stake = db.Column(db.Float, nullable=False)  # Amount wagered
+    multiplier = db.Column(db.Float, nullable=True)  # User-defined multiplier for payout calculation
     status = db.Column(db.String(20), default='pending')  # 'pending', 'won', 'lost', 'partial' (for flex)
     hits = db.Column(db.Integer, default=0)  # Number of picks that hit
     payout = db.Column(db.Float, default=0.0)  # Amount won (if won)
@@ -1040,6 +1041,7 @@ def get_bets():
             'entry_type': bet.entry_type,
             'num_picks': bet.num_picks,
             'stake': bet.stake,
+            'multiplier': bet.multiplier,
             'status': bet.status,
             'hits': bet.hits,
             'payout': bet.payout,
@@ -1092,6 +1094,7 @@ def create_bet():
             entry_type=data['entry_type'],
             num_picks=num_picks,
             stake=float(data['stake']),
+            multiplier=float(data.get('multiplier', 0)) if data.get('multiplier') else None,
             status='pending',
             hits=0,
             notes=data.get('notes'),
@@ -1144,11 +1147,16 @@ def update_bet(bet_id):
         # Calculate hits (number of correct picks)
         bet.hits = sum(1 for pick in bet.picks if pick.result == 'hit')
 
-        # Auto-calculate payout based on platform and entry type
-        if bet.platform == 'PrizePicks':
-            bet.payout = calculate_prizepicks_payout(bet.stake, bet.num_picks, bet.entry_type, bet.hits)
-        elif bet.platform == 'Underdog':
-            bet.payout = calculate_underdog_payout(bet.stake, bet.num_picks, bet.entry_type, bet.hits)
+        # Calculate payout based on user-defined multiplier if provided, otherwise use automatic calculation
+        if bet.multiplier is not None and bet.multiplier > 0:
+            # User-defined multiplier: payout = stake * multiplier
+            bet.payout = bet.stake * bet.multiplier
+        else:
+            # Auto-calculate payout based on platform and entry type
+            if bet.platform == 'PrizePicks':
+                bet.payout = calculate_prizepicks_payout(bet.stake, bet.num_picks, bet.entry_type, bet.hits)
+            elif bet.platform == 'Underdog':
+                bet.payout = calculate_underdog_payout(bet.stake, bet.num_picks, bet.entry_type, bet.hits)
 
         # Calculate profit
         bet.profit = bet.payout - bet.stake
@@ -1382,6 +1390,91 @@ def initialize_sample_data():
             db.session.add(matchup)
 
         db.session.commit()
+
+@app.route('/api/player/<int:player_id>/stats')
+def get_player_stats(player_id):
+    """Get detailed player statistics"""
+    try:
+        # Fetch player info
+        player_url = f'{MLB_API_BASE}/people/{player_id}?hydrate=stats(group=[hitting,pitching],type=[career,yearByYear])'
+        response = requests.get(player_url)
+
+        if response.status_code != 200:
+            return jsonify({'error': 'Player not found'}), 404
+
+        data = response.json()
+
+        if not data.get('people') or len(data['people']) == 0:
+            return jsonify({'error': 'Player not found'}), 404
+
+        player = data['people'][0]
+
+        player_info = {
+            'id': player.get('id'),
+            'fullName': player.get('fullName'),
+            'primaryNumber': player.get('primaryNumber', 'N/A'),
+            'currentTeam': player.get('currentTeam', {}).get('name', 'Free Agent'),
+            'primaryPosition': player.get('primaryPosition', {}).get('name', 'N/A'),
+            'age': player.get('currentAge', 'N/A'),
+            'birthDate': player.get('birthDate', 'N/A'),
+            'height': player.get('height', 'N/A'),
+            'weight': player.get('weight', 'N/A'),
+            'bats': player.get('batSide', {}).get('code', 'N/A'),
+            'throws': player.get('pitchHand', {}).get('code', 'N/A'),
+            'headshot': f"https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_426,q_auto:best/v1/people/{player.get('id')}/headshot/67/current",
+            'stats': []
+        }
+
+        # Extract stats
+        if player.get('stats'):
+            for stat_group in player['stats']:
+                for split in stat_group.get('splits', []):
+                    stat_data = split.get('stat', {})
+                    season = split.get('season', 'Career')
+
+                    stat_entry = {
+                        'season': season,
+                        'team': split.get('team', {}).get('name', 'N/A')
+                    }
+
+                    # Add hitting stats if available
+                    if 'avg' in stat_data:
+                        stat_entry.update({
+                            'gamesPlayed': stat_data.get('gamesPlayed', 0),
+                            'atBats': stat_data.get('atBats', 0),
+                            'hits': stat_data.get('hits', 0),
+                            'avg': stat_data.get('avg', '.000'),
+                            'homeRuns': stat_data.get('homeRuns', 0),
+                            'rbi': stat_data.get('rbi', 0),
+                            'runs': stat_data.get('runs', 0),
+                            'obp': stat_data.get('obp', '.000'),
+                            'slg': stat_data.get('slg', '.000'),
+                            'ops': stat_data.get('ops', '.000'),
+                            'stolenBases': stat_data.get('stolenBases', 0)
+                        })
+
+                    # Add pitching stats if available
+                    if 'era' in stat_data:
+                        stat_entry.update({
+                            'gamesPlayed': stat_data.get('gamesPlayed', 0),
+                            'gamesStarted': stat_data.get('gamesStarted', 0),
+                            'wins': stat_data.get('wins', 0),
+                            'losses': stat_data.get('losses', 0),
+                            'era': stat_data.get('era', '0.00'),
+                            'inningsPitched': stat_data.get('inningsPitched', '0.0'),
+                            'strikeOuts': stat_data.get('strikeOuts', 0),
+                            'walks': stat_data.get('baseOnBalls', 0),
+                            'whip': stat_data.get('whip', '0.00'),
+                            'saves': stat_data.get('saves', 0)
+                        })
+
+                    player_info['stats'].append(stat_entry)
+
+        return jsonify(player_info)
+
+    except Exception as e:
+        print(f"Error fetching player stats: {e}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     with app.app_context():
